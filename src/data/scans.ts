@@ -1,0 +1,40 @@
+import type { ScanJob } from '@/types'
+
+export const seedScans: ScanJob[] = [
+  {
+    id: 'scan-1',
+    policyId: 'pol-1',
+    configurationId: 'cfg-aws-1',
+    status: 'completed',
+    startedAt: '2026-06-24T17:05:00',
+    durationSec: 203,
+    objectsScanned: 32,
+    sensitiveFound: 26,
+    dataScannedBytes: 13020364,
+    scopeIds: ['s3-finance-exports', 's3-public-web-assets'],
+  },
+  {
+    id: 'scan-2',
+    policyId: 'pol-2',
+    configurationId: 'cfg-aws-1',
+    status: 'completed',
+    startedAt: '2026-06-23T20:09:00',
+    durationSec: 642,
+    objectsScanned: 452,
+    sensitiveFound: 53,
+    dataScannedBytes: 1380831748,
+    scopeIds: ['s3-finance-exports', 's3-public-web-assets'],
+  },
+  {
+    id: 'scan-3',
+    policyId: 'pol-1',
+    configurationId: 'cfg-aws-1',
+    status: 'failed',
+    startedAt: '2026-06-22T08:30:00',
+    durationSec: 12,
+    objectsScanned: 0,
+    sensitiveFound: 0,
+    dataScannedBytes: 0,
+    scopeIds: ['s3-finance-exports'],
+  },
+]
