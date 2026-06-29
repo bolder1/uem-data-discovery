@@ -1,14 +1,6 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import {
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle2,
-  ShieldCheck,
-  Play,
-  Box,
-  Check,
-} from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Play } from 'lucide-react'
 import {
   classifications,
   fileTypes,
@@ -47,10 +39,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Stepper, RiskBadge, AuditStamp } from '@/components/common'
+import { Stepper, RiskBadge, AuditStamp, ProviderIcon } from '@/components/common'
 import { ExposurePill } from '@/components/discovery/ScopeTable'
-import { IconChecklist } from '@/components/v2/IconChecklist'
-import { SourceSelect } from '@/components/v2/SourceSelect'
+import { SearchableSelect, type SelectOption } from '@/components/v2/SearchableSelect'
 import { fileTypeIcon, classificationIcon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { formatBytes, RISK_META } from '@/lib/format'
@@ -66,8 +57,7 @@ const STEPS = [
 
 const RISK_ORDER: Risk[] = ['low', 'medium', 'high', 'critical']
 
-// Colourful risk picker — replaces the old slider. Colours match the
-// RiskBadge shown elsewhere (table, review) so the same risk reads the same.
+// Colourful risk picker — colours match the RiskBadge shown elsewhere.
 const RISK_TEXT: Record<Risk, string> = {
   low: 'text-slate-600',
   medium: 'text-amber-600',
@@ -120,12 +110,9 @@ export function PolicyDrawer({
   const navigate = useNavigate()
   const { configurations, addPolicy, runScan } = useDataDiscovery()
 
-  // A pre-selected connection (e.g. arriving from a source) seeds both the
-  // source and its scope selection up front.
-  const initialCfg =
-    initialConfigId
-      ? configurations.find((c) => c.id === initialConfigId)
-      : undefined
+  const initialCfg = initialConfigId
+    ? configurations.find((c) => c.id === initialConfigId)
+    : undefined
 
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
@@ -186,6 +173,34 @@ export function PolicyDrawer({
     })
     setSaved(policy)
   }
+
+  // ---- option lists (built once per render) -------------------------------
+  const sourceOptions: SelectOption[] = configurations.map((c) => {
+    const p = providerById(c.providerId)
+    return {
+      id: c.id,
+      label: c.name,
+      description: `${p?.name ?? c.providerId} · ${c.scopes.length} ${
+        p?.scopeNounPlural.toLowerCase() ?? 'targets'
+      }`,
+      keywords: p?.name,
+    }
+  })
+  const fileTypeOptions: SelectOption[] = fileTypes
+  const classOptions: SelectOption[] = classifications.map((c) => ({
+    id: c.id,
+    label: c.label,
+    description: c.description,
+    keywords: c.abbr,
+  }))
+  const scopeOptions: SelectOption[] =
+    cfg?.scopes.map((s) => ({
+      id: s.id,
+      label: s.name,
+      description: `${s.objects} objects · ${s.sensitive} sensitive · ${formatBytes(
+        s.sizeBytes,
+      )}`,
+    })) ?? []
 
   return (
     <Sheet open={open} onOpenChange={(next) => !next && requestClose()}>
@@ -253,10 +268,22 @@ export function PolicyDrawer({
                         first.
                       </div>
                     ) : (
-                      <SourceSelect
-                        configurations={configurations}
-                        value={configurationId}
-                        onChange={selectConfig}
+                      <SearchableSelect
+                        mode="single"
+                        options={sourceOptions}
+                        selected={new Set(configurationId ? [configurationId] : [])}
+                        onToggle={selectConfig}
+                        placeholder="Search data sources…"
+                        emptyHint="No data sources match."
+                        maxHeightClass="max-h-56"
+                        renderIcon={(o) => (
+                          <ProviderIcon
+                            providerId={
+                              configurations.find((c) => c.id === o.id)!.providerId
+                            }
+                            bare
+                          />
+                        )}
                       />
                     )}
                   </div>
@@ -295,14 +322,18 @@ export function PolicyDrawer({
                     title="File types"
                     subtitle="Select the file types this policy applies to."
                   />
-                  <IconChecklist
-                    options={fileTypes}
+                  <SearchableSelect
+                    options={fileTypeOptions}
                     selected={fileTypeSet}
                     onToggle={toggleFileType}
                     onSelectAll={(c) =>
                       setFileTypeSet(c ? new Set(fileTypes.map((f) => f.id)) : new Set())
                     }
-                    iconFor={fileTypeIcon}
+                    placeholder="Search file types…"
+                    renderIcon={(o) => {
+                      const Icon = fileTypeIcon(o.id)
+                      return <Icon className="size-4" />
+                    }}
                   />
                 </div>
               )}
@@ -313,147 +344,105 @@ export function PolicyDrawer({
                     title="Classifications"
                     subtitle="Select the data classifications to detect."
                   />
-                  <IconChecklist
-                    options={classifications.map((c) => ({
-                      id: c.id,
-                      label: c.label,
-                      description: c.description,
-                    }))}
+                  <SearchableSelect
+                    options={classOptions}
                     selected={classSet}
                     onToggle={toggleClass}
                     onSelectAll={(c) =>
                       setClassSet(c ? new Set(classifications.map((x) => x.id)) : new Set())
                     }
-                    iconFor={classificationIcon}
+                    placeholder="Search classifications…"
+                    renderIcon={(o) => {
+                      const Icon = classificationIcon(o.id)
+                      return <Icon className="size-4" />
+                    }}
+                    renderMeta={(o) => {
+                      const abbr = classificationById(o.id)?.abbr
+                      return abbr ? (
+                        <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          {abbr}
+                        </span>
+                      ) : null
+                    }}
                   />
                 </div>
               )}
 
               {step === 3 && cfg && provider && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <StepHeading
-                      title={`${provider.scopeNounPlural} to scan`}
-                      subtitle={`${scopeSet.size} of ${cfg.scopes.length} selected in ${cfg.name}`}
-                    />
-                    <button
-                      type="button"
-                      className="text-sm font-medium text-primary"
-                      onClick={() =>
-                        setScopeSet(
-                          scopeSet.size === cfg.scopes.length
-                            ? new Set()
-                            : new Set(cfg.scopes.map((s) => s.id)),
-                        )
-                      }
-                    >
-                      {scopeSet.size === cfg.scopes.length ? 'Clear all' : 'Select all'}
-                    </button>
-                  </div>
-                  {(() => {
-                    const publicCount = cfg.scopes.filter(
-                      (s) => scopeSet.has(s.id) && s.publicAccess,
-                    ).length
-                    if (publicCount === 0) return null
-                    return (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                        Includes {publicCount} public{' '}
-                        {provider.scopeNoun.toLowerCase()}
-                        {publicCount === 1 ? '' : 's'} — they will be scanned.
-                      </div>
-                    )
-                  })()}
-                  <div className="space-y-2">
-                    {cfg.scopes.map((s) => {
-                      const on = scopeSet.has(s.id)
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => toggleScope(s.id)}
-                          className={cn(
-                            'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors',
-                            on
-                              ? 'border-brand/40 bg-brand/5'
-                              : 'hover:border-border hover:bg-secondary/40',
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'flex size-9 items-center justify-center rounded-lg transition-colors',
-                              on ? 'bg-brand/10 text-brand' : 'bg-secondary text-muted-foreground',
-                            )}
-                          >
-                            <Box className="size-4.5" />
-                          </span>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-foreground">{s.name}</span>
-                              {s.publicAccess && <ExposurePill public />}
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              {s.objects} objects · {s.sensitive} sensitive ·{' '}
-                              {formatBytes(s.sizeBytes)}
-                            </p>
-                          </div>
-                          <span
-                            className={cn(
-                              'flex size-5 items-center justify-center rounded-full border transition-colors',
-                              on
-                                ? 'border-brand bg-brand text-white'
-                                : 'border-border bg-card text-transparent',
-                            )}
-                          >
-                            <Check className="size-3" strokeWidth={3} />
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
+                  <StepHeading
+                    title={`${provider.scopeNounPlural} to scan`}
+                    subtitle={`Pick which ${provider.scopeNounPlural.toLowerCase()} in ${cfg.name} this policy covers.`}
+                  />
+                  <SearchableSelect
+                    options={scopeOptions}
+                    selected={scopeSet}
+                    onToggle={toggleScope}
+                    onSelectAll={(c) =>
+                      setScopeSet(c ? new Set(cfg.scopes.map((s) => s.id)) : new Set())
+                    }
+                    placeholder={`Search ${provider.scopeNounPlural.toLowerCase()}…`}
+                    renderMeta={(o) => {
+                      const sc = cfg.scopes.find((s) => s.id === o.id)
+                      return sc?.publicAccess ? <ExposurePill public /> : null
+                    }}
+                  />
                 </div>
               )}
 
               {step === 4 && (
-                <div className="space-y-5">
+                <div className="space-y-3">
                   <StepHeading title="Review policy" subtitle="Confirm before creating." />
-                  <div className="grid gap-4 rounded-xl border bg-secondary/30 p-4 sm:grid-cols-2">
-                    <ReviewItem label="Name" value={name} />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Risk</p>
-                      <div className="mt-1">
-                        <RiskBadge risk={risk} />
+                  <div className="overflow-hidden rounded-xl border">
+                    <div className="flex items-center justify-between gap-3 border-b bg-secondary/30 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {name || 'Untitled policy'}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {cfg?.name ?? 'No source'} ·{' '}
+                          {enabled ? 'Enabled' : 'Disabled'}
+                        </p>
                       </div>
+                      <RiskBadge risk={risk} />
                     </div>
-                    <ReviewItem label="Data source" value={cfg?.name ?? '—'} />
-                    <ReviewItem label="Status" value={enabled ? 'Enabled' : 'Disabled'} />
-                    <ReviewChips
-                      label="File types"
-                      items={[...fileTypeSet].map((id) => ({
-                        key: id,
-                        label: fileTypeById(id)?.label ?? id,
-                      }))}
-                    />
-                    <ReviewChips
-                      label="Classifications"
-                      items={[...classSet].map((id) => ({
-                        key: id,
-                        label: classificationById(id)?.label ?? id,
-                      }))}
-                    />
-                    <ReviewChips
+
+                    {description.trim() && (
+                      <ReviewRow label="Description">
+                        <p className="text-sm text-foreground">{description.trim()}</p>
+                      </ReviewRow>
+                    )}
+                    <ReviewRow label="Data source">
+                      <p className="text-sm text-foreground">{cfg?.name ?? '—'}</p>
+                    </ReviewRow>
+                    <ReviewRow label="File types" count={fileTypeSet.size}>
+                      <ChipList
+                        items={[...fileTypeSet].map((id) => fileTypeById(id)?.label ?? id)}
+                      />
+                    </ReviewRow>
+                    <ReviewRow label="Classifications" count={classSet.size}>
+                      <ChipList
+                        items={[...classSet].map(
+                          (id) => classificationById(id)?.label ?? id,
+                        )}
+                      />
+                    </ReviewRow>
+                    <ReviewRow
                       label={provider?.scopeNounPlural ?? 'Scope'}
-                      items={
-                        cfg
-                          ? cfg.scopes
-                              .filter((s) => scopeSet.has(s.id))
-                              .map((s) => ({
-                                key: s.id,
-                                label: s.name,
-                                public: s.publicAccess,
-                              }))
-                          : []
-                      }
-                    />
+                      count={scopeSet.size}
+                      countSuffix={cfg ? `of ${cfg.scopes.length}` : undefined}
+                      last
+                    >
+                      <ChipList
+                        items={
+                          cfg
+                            ? cfg.scopes
+                                .filter((s) => scopeSet.has(s.id))
+                                .map((s) => s.name)
+                            : []
+                        }
+                      />
+                    </ReviewRow>
                   </div>
                 </div>
               )}
@@ -538,39 +527,53 @@ function StepHeading({ title, subtitle }: { title: string; subtitle: string }) {
   )
 }
 
-function ReviewItem({ label, value }: { label: string; value: string }) {
+function ReviewRow({
+  label,
+  count,
+  countSuffix,
+  last,
+  children,
+}: {
+  label: string
+  count?: number
+  countSuffix?: string
+  last?: boolean
+  children: ReactNode
+}) {
   return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-0.5 text-sm text-foreground">{value || '—'}</p>
+    <div className={cn('flex gap-4 px-4 py-3', !last && 'border-b')}>
+      <div className="w-28 shrink-0">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        {count != null && (
+          <p className="mt-0.5 text-xs text-muted-foreground/70">
+            {count} {countSuffix ?? 'selected'}
+          </p>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   )
 }
 
-function ReviewChips({
-  label,
-  items,
-}: {
-  label: string
-  items: { key: string; label: string; public?: boolean }[]
-}) {
+function ChipList({ items, max = 6 }: { items: string[]; max?: number }) {
+  if (items.length === 0)
+    return <p className="text-sm text-muted-foreground">—</p>
+  const shown = items.slice(0, max)
+  const rest = items.length - shown.length
   return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      {items.length === 0 ? (
-        <p className="mt-0.5 text-sm text-foreground">—</p>
-      ) : (
-        <div className="mt-1 flex flex-wrap gap-1.5">
-          {items.map((it) => (
-            <span
-              key={it.key}
-              className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs text-foreground"
-            >
-              {it.label}
-              {it.public && <ExposurePill public />}
-            </span>
-          ))}
-        </div>
+    <div className="flex flex-wrap gap-1.5">
+      {shown.map((label, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs text-foreground"
+        >
+          {label}
+        </span>
+      ))}
+      {rest > 0 && (
+        <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 text-xs text-muted-foreground">
+          +{rest} more
+        </span>
       )}
     </div>
   )
