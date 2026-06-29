@@ -42,22 +42,13 @@ import {
 import { Stepper, RiskBadge, AuditStamp, ProviderIcon } from '@/components/common'
 import { ExposurePill } from '@/components/discovery/ScopeTable'
 import { SearchableSelect, type SelectOption } from '@/components/v2/SearchableSelect'
+import { Combobox, type FilterGroup } from '@/components/v2/Combobox'
 import { fileTypeIcon, classificationIcon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { formatBytes, RISK_META } from '@/lib/format'
 import type { Policy, Risk } from '@/types'
 
-const STEPS = [
-  { key: 'setup', label: 'Setup' },
-  { key: 'filetypes', label: 'File types' },
-  { key: 'classification', label: 'Classification' },
-  { key: 'scope', label: 'Scope' },
-  { key: 'review', label: 'Review' },
-]
-
 const RISK_ORDER: Risk[] = ['low', 'medium', 'high', 'critical']
-
-// Colourful risk picker — colours match the RiskBadge shown elsewhere.
 const RISK_TEXT: Record<Risk, string> = {
   low: 'text-slate-600',
   medium: 'text-amber-600',
@@ -119,41 +110,165 @@ export function PolicyDrawer({
   const [description, setDescription] = useState('')
   const [risk, setRisk] = useState<Risk>('medium')
   const [enabled, setEnabled] = useState(true)
+
+  // Step 2 — single data type (provider), then many sources within that type.
+  const [dataType, setDataType] = useState(initialCfg?.providerId ?? '')
+  const [configIds, setConfigIds] = useState<Set<string>>(
+    () => new Set(initialCfg ? [initialCfg.id] : []),
+  )
+
   const [fileTypeSet, setFileTypeSet, toggleFileType] = useToggleSet()
   const [classSet, setClassSet, toggleClass] = useToggleSet()
   const [scopeSet, setScopeSet, toggleScope] = useToggleSet(
     () => new Set(initialCfg?.scopes.map((s) => s.id) ?? []),
   )
-  const [configurationId, setConfigurationId] = useState(initialCfg?.id ?? '')
   const [confirmClose, setConfirmClose] = useState(false)
   const [saved, setSaved] = useState<Policy | null>(null)
 
-  const cfg = configurations.find((c) => c.id === configurationId)
-  const provider = cfg && providerById(cfg.providerId)
+  const provider = dataType ? providerById(dataType) : undefined
+  const noun = provider?.scopeNounPlural ?? 'targets'
 
-  const selectConfig = (id: string) => {
-    setConfigurationId(id)
-    const c = configurations.find((x) => x.id === id)
-    setScopeSet(new Set(c?.scopes.map((s) => s.id) ?? []))
+  // Step 5's label tracks the selected data source's unit — Buckets (S3),
+  // Containers (Azure), Schemas (Postgres), etc. — instead of a generic "Scope".
+  const scopeLabel = provider?.scopeNounPlural ?? 'Buckets'
+  const STEPS = [
+    { key: 'basics', label: 'Basics' },
+    { key: 'source', label: 'Data source' },
+    { key: 'filetypes', label: 'File types' },
+    { key: 'classification', label: 'Classification' },
+    { key: 'scope', label: scopeLabel },
+    { key: 'review', label: 'Review' },
+  ]
+  const selectedConfigs = configurations.filter((c) => configIds.has(c.id))
+
+  // Data types = providers that actually have a configured connection.
+  const typeProviders = [...new Set(configurations.map((c) => c.providerId))]
+    .map((id) => providerById(id))
+    .filter((p): p is NonNullable<typeof p> => !!p)
+    .sort((a, b) => a.name.localeCompare(b.name))
+  const countOfType = (pid: string) =>
+    configurations.filter((c) => c.providerId === pid).length
+
+  const dataTypeOptions = typeProviders.map((p) => ({
+    id: p.id,
+    label: p.name,
+    keywords: `${p.vendor} ${p.category}`,
+    category: p.category,
+    count: countOfType(p.id),
+  }))
+  const dataTypeFilters: FilterGroup<(typeof dataTypeOptions)[number]>[] = [
+    {
+      key: 'category',
+      label: 'Category',
+      chips: [...new Set(typeProviders.map((p) => p.category))].map((c) => ({
+        value: c,
+        label: c,
+      })),
+      test: (o, active) => active.includes(o.category),
+    },
+  ]
+
+  const configsForType = configurations.filter((c) => c.providerId === dataType)
+  const sourceOptions = configsForType.map((c) => ({
+    id: c.id,
+    label: c.name,
+    description: `${c.scopes.length} ${provider?.scopeNounPlural.toLowerCase() ?? 'targets'}`,
+    status: c.status,
+    hasPublic: c.scopes.some((s) => s.publicAccess),
+    keywords: c.name,
+  }))
+  const sourceFilters: FilterGroup<(typeof sourceOptions)[number]>[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      chips: [...new Set(configsForType.map((c) => c.status))].map((s) => ({
+        value: s,
+        label: s.charAt(0).toUpperCase() + s.slice(1).replace('-', ' '),
+      })),
+      test: (o, active) => active.includes(o.status),
+    },
+    {
+      key: 'exposure',
+      label: 'Exposure',
+      chips: [
+        { value: 'public', label: 'Has public' },
+        { value: 'private', label: 'Private only' },
+      ],
+      test: (o, active) => active.includes(o.hasPublic ? 'public' : 'private'),
+    },
+  ]
+  const scopeOptions: SelectOption[] = selectedConfigs.flatMap((c) =>
+    c.scopes.map((s) => ({
+      id: s.id,
+      label: s.name,
+      description: `${c.name} · ${s.objects} objects · ${s.sensitive} sensitive · ${formatBytes(
+        s.sizeBytes,
+      )}`,
+    })),
+  )
+  const totalScopes = selectedConfigs.reduce((n, c) => n + c.scopes.length, 0)
+
+  // Switching the data type resets the source + scope picks below it.
+  const changeDataType = (pid: string) => {
+    setDataType(pid)
+    setConfigIds(new Set())
+    setScopeSet(new Set())
+  }
+  // Toggling a source also adds/removes its scopes (scope step stays pre-filled).
+  const toggleSource = (id: string) => {
+    const cfg = configurations.find((c) => c.id === id)
+    const ids = cfg?.scopes.map((s) => s.id) ?? []
+    const on = configIds.has(id)
+    setConfigIds((prev) => {
+      const n = new Set(prev)
+      if (on) n.delete(id)
+      else n.add(id)
+      return n
+    })
+    setScopeSet((prev) => {
+      const n = new Set(prev)
+      ids.forEach((x) => (on ? n.delete(x) : n.add(x)))
+      return n
+    })
+  }
+  // Bulk add/remove a set of sources (respects the dropdown's active filter)
+  // and keeps their scopes in sync.
+  const setSourcesBulk = (ids: string[], checked: boolean) => {
+    setConfigIds((prev) => {
+      const n = new Set(prev)
+      ids.forEach((id) => (checked ? n.add(id) : n.delete(id)))
+      return n
+    })
+    setScopeSet((prev) => {
+      const n = new Set(prev)
+      ids.forEach((id) => {
+        const cfg = configurations.find((c) => c.id === id)
+        cfg?.scopes.forEach((s) => (checked ? n.add(s.id) : n.delete(s.id)))
+      })
+      return n
+    })
   }
 
   const dirty =
     !saved &&
     (name.trim().length > 0 ||
-      !!configurationId ||
+      !!dataType ||
+      configIds.size > 0 ||
       fileTypeSet.size > 0 ||
       classSet.size > 0)
 
   const canNext =
     step === 0
-      ? name.trim().length > 0 && !!configurationId
+      ? name.trim().length > 0
       : step === 1
-        ? fileTypeSet.size > 0
+        ? !!dataType && configIds.size > 0
         : step === 2
-          ? classSet.size > 0
+          ? fileTypeSet.size > 0
           : step === 3
-            ? scopeSet.size > 0
-            : true
+            ? classSet.size > 0
+            : step === 4
+              ? scopeSet.size > 0
+              : true
 
   const requestClose = () => {
     if (dirty) setConfirmClose(true)
@@ -161,6 +276,7 @@ export function PolicyDrawer({
   }
 
   const handleCreate = () => {
+    const ids = [...configIds]
     const policy = addPolicy({
       name: name.trim(),
       description: description.trim() || undefined,
@@ -168,52 +284,22 @@ export function PolicyDrawer({
       status: enabled,
       fileTypeIds: [...fileTypeSet],
       classificationIds: [...classSet],
-      configurationId,
+      configurationId: ids[0],
+      configurationIds: ids,
       scopeIds: [...scopeSet],
     })
     setSaved(policy)
   }
 
-  // ---- option lists (built once per render) -------------------------------
-  const sourceOptions: SelectOption[] = configurations.map((c) => {
-    const p = providerById(c.providerId)
-    return {
-      id: c.id,
-      label: c.name,
-      description: `${p?.name ?? c.providerId} · ${c.scopes.length} ${
-        p?.scopeNounPlural.toLowerCase() ?? 'targets'
-      }`,
-      keywords: p?.name,
-    }
-  })
-  const fileTypeOptions: SelectOption[] = fileTypes
-  const classOptions: SelectOption[] = classifications.map((c) => ({
-    id: c.id,
-    label: c.label,
-    description: c.description,
-    keywords: c.abbr,
-  }))
-  const scopeOptions: SelectOption[] =
-    cfg?.scopes.map((s) => ({
-      id: s.id,
-      label: s.name,
-      description: `${s.objects} objects · ${s.sensitive} sensitive · ${formatBytes(
-        s.sizeBytes,
-      )}`,
-    })) ?? []
-
   return (
     <Sheet open={open} onOpenChange={(next) => !next && requestClose()}>
-      <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
-      >
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
         <SheetHeader className="border-b px-5 py-4 text-left">
           <SheetTitle>{saved ? 'Policy created' : 'Create policy'}</SheetTitle>
           <SheetDescription>
             {saved
               ? `“${saved.name}” is ${saved.status ? 'enabled' : 'saved as disabled'}.`
-              : 'Define what to scan for and which source to target.'}
+              : 'Define what to scan for and which sources to target.'}
           </SheetDescription>
         </SheetHeader>
 
@@ -224,8 +310,9 @@ export function PolicyDrawer({
             </div>
             <div>
               <p className="text-sm text-muted-foreground">
-                Ready to run against {saved.scopeIds.length}{' '}
-                {provider?.scopeNounPlural.toLowerCase() ?? 'targets'}.
+                Targets {selectedConfigs.length}{' '}
+                {selectedConfigs.length === 1 ? 'source' : 'sources'} ·{' '}
+                {saved.scopeIds.length} {noun.toLowerCase()}.
               </p>
               <div className="mt-4">
                 <AuditStamp at={saved.createdAt} by={saved.createdBy} />
@@ -239,6 +326,7 @@ export function PolicyDrawer({
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-5">
+              {/* Step 1 — basics */}
               {step === 0 && (
                 <div className="space-y-5">
                   <div className="space-y-1.5">
@@ -251,43 +339,6 @@ export function PolicyDrawer({
                       onChange={(e) => setName(e.target.value)}
                     />
                   </div>
-
-                  <div className="space-y-1.5">
-                    <Label>
-                      Data source<span className="text-red-500"> *</span>
-                    </Label>
-                    {configurations.length === 0 ? (
-                      <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                        No connections yet.{' '}
-                        <Link
-                          to="/data-discovery/sources"
-                          className="text-primary underline"
-                        >
-                          Add a data source
-                        </Link>{' '}
-                        first.
-                      </div>
-                    ) : (
-                      <SearchableSelect
-                        mode="single"
-                        options={sourceOptions}
-                        selected={new Set(configurationId ? [configurationId] : [])}
-                        onToggle={selectConfig}
-                        placeholder="Search data sources…"
-                        emptyHint="No data sources match."
-                        maxHeightClass="max-h-56"
-                        renderIcon={(o) => (
-                          <ProviderIcon
-                            providerId={
-                              configurations.find((c) => c.id === o.id)!.providerId
-                            }
-                            bare
-                          />
-                        )}
-                      />
-                    )}
-                  </div>
-
                   <div className="space-y-1.5">
                     <Label>Description</Label>
                     <Textarea
@@ -296,12 +347,10 @@ export function PolicyDrawer({
                       onChange={(e) => setDescription(e.target.value)}
                     />
                   </div>
-
                   <div className="space-y-1.5">
                     <Label>Risk level</Label>
                     <RiskSelect value={risk} onChange={setRisk} />
                   </div>
-
                   <div className="flex items-center justify-between rounded-lg border px-4 py-3">
                     <div>
                       <p className="text-sm font-medium text-foreground">
@@ -316,14 +365,85 @@ export function PolicyDrawer({
                 </div>
               )}
 
+              {/* Step 2 — data type, then its sources */}
               {step === 1 && (
+                <div className="space-y-5">
+                  {configurations.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                      No connections yet.{' '}
+                      <Link
+                        to="/data-discovery/sources"
+                        className="text-primary underline"
+                      >
+                        Add a data source
+                      </Link>{' '}
+                      first.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label>
+                          Data type<span className="text-red-500"> *</span>
+                        </Label>
+                        <Combobox
+                          options={dataTypeOptions}
+                          selected={new Set(dataType ? [dataType] : [])}
+                          onSelect={changeDataType}
+                          placeholder="Select a data type…"
+                          searchPlaceholder="Search data types…"
+                          filters={dataTypeFilters}
+                          renderIcon={(o) => <ProviderIcon providerId={o.id} bare />}
+                          renderMeta={(o) => (
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {o.count}
+                            </span>
+                          )}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>
+                          Sources<span className="text-red-500"> *</span>
+                        </Label>
+                        <Combobox
+                          multiple
+                          disabled={!dataType}
+                          options={sourceOptions}
+                          selected={configIds}
+                          onSelect={toggleSource}
+                          onSelectAll={setSourcesBulk}
+                          searchPlaceholder={`Search ${provider?.name ?? ''} sources…`}
+                          emptyHint="No sources match."
+                          filters={sourceFilters}
+                          renderIcon={() => <ProviderIcon providerId={dataType} bare />}
+                          renderMeta={(o) => (o.hasPublic ? <ExposurePill public /> : null)}
+                          triggerSummary={(sel) =>
+                            sel.length > 0 ? (
+                              <span>
+                                {sel.length} of {configsForType.length} sources
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">
+                                {dataType ? 'Select sources…' : 'Select a data type first'}
+                              </span>
+                            )
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Step 3 — file types */}
+              {step === 2 && (
                 <div className="space-y-3">
                   <StepHeading
                     title="File types"
                     subtitle="Select the file types this policy applies to."
                   />
                   <SearchableSelect
-                    options={fileTypeOptions}
+                    options={fileTypes}
                     selected={fileTypeSet}
                     onToggle={toggleFileType}
                     onSelectAll={(c) =>
@@ -338,14 +458,20 @@ export function PolicyDrawer({
                 </div>
               )}
 
-              {step === 2 && (
+              {/* Step 4 — classifications */}
+              {step === 3 && (
                 <div className="space-y-3">
                   <StepHeading
                     title="Classifications"
                     subtitle="Select the data classifications to detect."
                   />
                   <SearchableSelect
-                    options={classOptions}
+                    options={classifications.map((c) => ({
+                      id: c.id,
+                      label: c.label,
+                      description: c.description,
+                      keywords: c.abbr,
+                    }))}
                     selected={classSet}
                     onToggle={toggleClass}
                     onSelectAll={(c) =>
@@ -368,29 +494,35 @@ export function PolicyDrawer({
                 </div>
               )}
 
-              {step === 3 && cfg && provider && (
+              {/* Step 5 — scope across selected sources */}
+              {step === 4 && provider && (
                 <div className="space-y-3">
                   <StepHeading
                     title={`${provider.scopeNounPlural} to scan`}
-                    subtitle={`Pick which ${provider.scopeNounPlural.toLowerCase()} in ${cfg.name} this policy covers.`}
+                    subtitle={`Pick which ${provider.scopeNounPlural.toLowerCase()} across ${selectedConfigs.length} ${
+                      selectedConfigs.length === 1 ? 'source' : 'sources'
+                    } this policy covers.`}
                   />
                   <SearchableSelect
                     options={scopeOptions}
                     selected={scopeSet}
                     onToggle={toggleScope}
                     onSelectAll={(c) =>
-                      setScopeSet(c ? new Set(cfg.scopes.map((s) => s.id)) : new Set())
+                      setScopeSet(c ? new Set(scopeOptions.map((o) => o.id)) : new Set())
                     }
                     placeholder={`Search ${provider.scopeNounPlural.toLowerCase()}…`}
                     renderMeta={(o) => {
-                      const sc = cfg.scopes.find((s) => s.id === o.id)
+                      const sc = selectedConfigs
+                        .flatMap((c) => c.scopes)
+                        .find((s) => s.id === o.id)
                       return sc?.publicAccess ? <ExposurePill public /> : null
                     }}
                   />
                 </div>
               )}
 
-              {step === 4 && (
+              {/* Step 6 — review */}
+              {step === 5 && (
                 <div className="space-y-3">
                   <StepHeading title="Review policy" subtitle="Confirm before creating." />
                   <div className="overflow-hidden rounded-xl border">
@@ -400,7 +532,8 @@ export function PolicyDrawer({
                           {name || 'Untitled policy'}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {cfg?.name ?? 'No source'} ·{' '}
+                          {provider?.name ?? 'No data type'} · {selectedConfigs.length}{' '}
+                          {selectedConfigs.length === 1 ? 'source' : 'sources'} ·{' '}
                           {enabled ? 'Enabled' : 'Disabled'}
                         </p>
                       </div>
@@ -412,8 +545,11 @@ export function PolicyDrawer({
                         <p className="text-sm text-foreground">{description.trim()}</p>
                       </ReviewRow>
                     )}
-                    <ReviewRow label="Data source">
-                      <p className="text-sm text-foreground">{cfg?.name ?? '—'}</p>
+                    <ReviewRow label="Data type">
+                      <p className="text-sm text-foreground">{provider?.name ?? '—'}</p>
+                    </ReviewRow>
+                    <ReviewRow label="Sources" count={selectedConfigs.length}>
+                      <ChipList items={selectedConfigs.map((c) => c.name)} />
                     </ReviewRow>
                     <ReviewRow label="File types" count={fileTypeSet.size}>
                       <ChipList
@@ -430,17 +566,14 @@ export function PolicyDrawer({
                     <ReviewRow
                       label={provider?.scopeNounPlural ?? 'Scope'}
                       count={scopeSet.size}
-                      countSuffix={cfg ? `of ${cfg.scopes.length}` : undefined}
+                      countSuffix={`of ${totalScopes}`}
                       last
                     >
                       <ChipList
-                        items={
-                          cfg
-                            ? cfg.scopes
-                                .filter((s) => scopeSet.has(s.id))
-                                .map((s) => s.name)
-                            : []
-                        }
+                        items={selectedConfigs
+                          .flatMap((c) => c.scopes)
+                          .filter((s) => scopeSet.has(s.id))
+                          .map((s) => s.name)}
                       />
                     </ReviewRow>
                   </div>
@@ -556,8 +689,7 @@ function ReviewRow({
 }
 
 function ChipList({ items, max = 6 }: { items: string[]; max?: number }) {
-  if (items.length === 0)
-    return <p className="text-sm text-muted-foreground">—</p>
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">—</p>
   const shown = items.slice(0, max)
   const rest = items.length - shown.length
   return (

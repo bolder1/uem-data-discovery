@@ -89,7 +89,10 @@ export interface Policy {
   status: boolean
   fileTypeIds: string[]
   classificationIds: string[]
+  /** Primary connection (first selected) — kept for scans/tables. */
   configurationId: string
+  /** All connections this policy targets (same data type). Falls back to [configurationId]. */
+  configurationIds?: string[]
   scopeIds: string[]
   createdAt: string
   createdBy: string
