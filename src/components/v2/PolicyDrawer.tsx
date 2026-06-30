@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Play } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Play, Check } from 'lucide-react'
 import {
   classifications,
   fileTypes,
@@ -23,13 +23,6 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -39,42 +32,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Stepper, RiskBadge, AuditStamp, ProviderIcon } from '@/components/common'
+import { Stepper, AuditStamp, ProviderIcon } from '@/components/common'
 import { ExposurePill } from '@/components/discovery/ScopeTable'
 import { SearchableSelect, type SelectOption } from '@/components/v2/SearchableSelect'
 import { Combobox, type FilterGroup } from '@/components/v2/Combobox'
 import { fileTypeIcon, classificationIcon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
-import { formatBytes, RISK_META } from '@/lib/format'
-import type { Policy, Risk } from '@/types'
-
-const RISK_ORDER: Risk[] = ['low', 'medium', 'high', 'critical']
-const RISK_TEXT: Record<Risk, string> = {
-  low: 'text-slate-600',
-  medium: 'text-amber-600',
-  high: 'text-orange-600',
-  critical: 'text-red-600',
-}
-
-function RiskSelect({ value, onChange }: { value: Risk; onChange: (r: Risk) => void }) {
-  return (
-    <Select value={value} onValueChange={(v) => onChange(v as Risk)}>
-      <SelectTrigger className="w-full">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {RISK_ORDER.map((r) => (
-          <SelectItem key={r} value={r}>
-            <span className={cn('flex items-center gap-2 font-medium', RISK_TEXT[r])}>
-              <span className={cn('size-2 rounded-full', RISK_META[r].dot)} />
-              {RISK_META[r].label}
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-}
+import { formatBytes } from '@/lib/format'
+import type { Policy } from '@/types'
 
 function useToggleSet(init?: () => Set<string>) {
   const [set, setSet] = useState<Set<string>>(init ?? (() => new Set()))
@@ -108,7 +73,6 @@ export function PolicyDrawer({
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [risk, setRisk] = useState<Risk>('medium')
   const [enabled, setEnabled] = useState(true)
 
   // Step 2 — single data type (provider), then many sources within that type.
@@ -169,34 +133,6 @@ export function PolicyDrawer({
   ]
 
   const configsForType = configurations.filter((c) => c.providerId === dataType)
-  const sourceOptions = configsForType.map((c) => ({
-    id: c.id,
-    label: c.name,
-    description: `${c.scopes.length} ${provider?.scopeNounPlural.toLowerCase() ?? 'targets'}`,
-    status: c.status,
-    hasPublic: c.scopes.some((s) => s.publicAccess),
-    keywords: c.name,
-  }))
-  const sourceFilters: FilterGroup<(typeof sourceOptions)[number]>[] = [
-    {
-      key: 'status',
-      label: 'Status',
-      chips: [...new Set(configsForType.map((c) => c.status))].map((s) => ({
-        value: s,
-        label: s.charAt(0).toUpperCase() + s.slice(1).replace('-', ' '),
-      })),
-      test: (o, active) => active.includes(o.status),
-    },
-    {
-      key: 'exposure',
-      label: 'Exposure',
-      chips: [
-        { value: 'public', label: 'Has public' },
-        { value: 'private', label: 'Private only' },
-      ],
-      test: (o, active) => active.includes(o.hasPublic ? 'public' : 'private'),
-    },
-  ]
   const scopeOptions: SelectOption[] = selectedConfigs.flatMap((c) =>
     c.scopes.map((s) => ({
       id: s.id,
@@ -280,7 +216,7 @@ export function PolicyDrawer({
     const policy = addPolicy({
       name: name.trim(),
       description: description.trim() || undefined,
-      risk,
+      risk: 'medium',
       status: enabled,
       fileTypeIds: [...fileTypeSet],
       classificationIds: [...classSet],
@@ -322,7 +258,7 @@ export function PolicyDrawer({
         ) : (
           <>
             <div className="border-b px-5 py-4">
-              <Stepper steps={STEPS} current={step} onStepClick={setStep} />
+              <Stepper steps={STEPS} current={step} onStepClick={setStep} scrollable />
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-5">
@@ -346,10 +282,6 @@ export function PolicyDrawer({
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                     />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Risk level</Label>
-                    <RiskSelect value={risk} onChange={setRisk} />
                   </div>
                   <div className="flex items-center justify-between rounded-lg border px-4 py-3">
                     <div>
@@ -401,34 +333,76 @@ export function PolicyDrawer({
                         />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label>
-                          Sources<span className="text-red-500"> *</span>
-                        </Label>
-                        <Combobox
-                          multiple
-                          disabled={!dataType}
-                          options={sourceOptions}
-                          selected={configIds}
-                          onSelect={toggleSource}
-                          onSelectAll={setSourcesBulk}
-                          searchPlaceholder={`Search ${provider?.name ?? ''} sources…`}
-                          emptyHint="No sources match."
-                          filters={sourceFilters}
-                          renderIcon={() => <ProviderIcon providerId={dataType} bare />}
-                          renderMeta={(o) => (o.hasPublic ? <ExposurePill public /> : null)}
-                          triggerSummary={(sel) =>
-                            sel.length > 0 ? (
-                              <span>
-                                {sel.length} of {configsForType.length} sources
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">
-                                {dataType ? 'Select sources…' : 'Select a data type first'}
-                              </span>
-                            )
-                          }
-                        />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>
+                            Sources<span className="text-red-500"> *</span>
+                          </Label>
+                          {dataType && configsForType.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSourcesBulk(
+                                  configsForType.map((c) => c.id),
+                                  configIds.size !== configsForType.length,
+                                )
+                              }
+                              className="text-xs font-medium text-primary"
+                            >
+                              {configIds.size === configsForType.length
+                                ? 'Clear all'
+                                : 'Select all'}
+                            </button>
+                          )}
+                        </div>
+                        {!dataType ? (
+                          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                            Select a data type to choose its sources.
+                          </div>
+                        ) : (
+                          <div className="grid gap-2">
+                            {configsForType.map((c) => {
+                              const on = configIds.has(c.id)
+                              const hasPublic = c.scopes.some((s) => s.publicAccess)
+                              return (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  aria-pressed={on}
+                                  onClick={() => toggleSource(c.id)}
+                                  className={cn(
+                                    'flex items-center gap-3 rounded-xl border p-3 text-left transition-colors',
+                                    on
+                                      ? 'border-brand/50 bg-brand/5'
+                                      : 'hover:border-border hover:bg-secondary/40',
+                                  )}
+                                >
+                                  <ProviderIcon providerId={c.providerId} size="sm" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-medium text-foreground">
+                                      {c.name}
+                                    </p>
+                                    <p className="truncate text-xs text-muted-foreground">
+                                      {c.scopes.length}{' '}
+                                      {provider?.scopeNounPlural.toLowerCase()}
+                                    </p>
+                                  </div>
+                                  {hasPublic && <ExposurePill public />}
+                                  <span
+                                    className={cn(
+                                      'flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors',
+                                      on
+                                        ? 'border-brand bg-brand text-white'
+                                        : 'border-input bg-card text-transparent',
+                                    )}
+                                  >
+                                    <Check className="size-3" strokeWidth={3} />
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     </>
                   )}
@@ -537,7 +511,6 @@ export function PolicyDrawer({
                           {enabled ? 'Enabled' : 'Disabled'}
                         </p>
                       </div>
-                      <RiskBadge risk={risk} />
                     </div>
 
                     {description.trim() && (

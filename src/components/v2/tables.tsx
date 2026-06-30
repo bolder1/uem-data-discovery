@@ -120,9 +120,6 @@ function PolicyRow({
           </p>
         )}
       </TableCell>
-      <TableCell>
-        <RiskBadge risk={p.risk} />
-      </TableCell>
       {showSource && (
         <TableCell>
           {cfg && provider ? (
@@ -265,7 +262,6 @@ export function PolicyTable({
       <TableHeader>
         <TableRow className="border-b hover:bg-transparent">
           <TableHead>Policy</TableHead>
-          <TableHead>Risk</TableHead>
           {showSource && <TableHead>Data Source</TableHead>}
           <TableHead>Classifications</TableHead>
           <TableHead className="text-center">File Types</TableHead>

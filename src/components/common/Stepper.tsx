@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -12,14 +13,39 @@ export function Stepper({
   current,
   onStepClick,
   className,
+  scrollable = false,
 }: {
   steps: Step[]
   current: number
   onStepClick?: (index: number) => void
   className?: string
+  /**
+   * One-line, horizontally scrollable layout that keeps the active step
+   * centered. Use when the container is too narrow to fit every step
+   * (e.g. a 6-step drawer). Default keeps the fit-to-width layout.
+   */
+  scrollable?: boolean
 }) {
-  return (
-    <ol className={cn('flex w-full items-center', className)}>
+  const activeRef = useRef<HTMLLIElement>(null)
+
+  // Keep the current step in view as the user advances/goes back.
+  useEffect(() => {
+    if (!scrollable) return
+    activeRef.current?.scrollIntoView({
+      inline: 'center',
+      block: 'nearest',
+      behavior: 'smooth',
+    })
+  }, [current, scrollable])
+
+  const list = (
+    <ol
+      className={cn(
+        'flex items-center',
+        scrollable ? 'w-max' : 'w-full',
+        className,
+      )}
+    >
       {steps.map((step, i) => {
         const done = i < current
         const active = i === current
@@ -28,7 +54,11 @@ export function Stepper({
         return (
           <li
             key={step.key}
-            className={cn('flex items-center', !isLast && 'flex-1')}
+            ref={active ? activeRef : undefined}
+            className={cn(
+              'flex items-center',
+              scrollable ? 'shrink-0' : !isLast && 'flex-1',
+            )}
           >
             <button
               type="button"
@@ -52,19 +82,22 @@ export function Stepper({
               >
                 {done ? <Check className="size-4" /> : i + 1}
               </span>
-              <span className={cn('flex-col', active ? 'flex' : 'hidden sm:flex')}>
+              <span
+                className={cn(
+                  'flex-col',
+                  scrollable ? 'flex' : active ? 'flex' : 'hidden sm:flex',
+                )}
+              >
                 <span
                   className={cn(
-                    'text-sm font-medium leading-tight',
-                    active || done
-                      ? 'text-foreground'
-                      : 'text-muted-foreground',
+                    'whitespace-nowrap text-sm font-medium leading-tight',
+                    active || done ? 'text-foreground' : 'text-muted-foreground',
                   )}
                 >
                   {step.label}
                 </span>
                 {step.description && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="whitespace-nowrap text-xs text-muted-foreground">
                     {step.description}
                   </span>
                 )}
@@ -73,7 +106,8 @@ export function Stepper({
             {!isLast && (
               <span
                 className={cn(
-                  'mx-3 h-px flex-1 transition-colors',
+                  'mx-3 h-px transition-colors',
+                  scrollable ? 'w-8 shrink-0' : 'flex-1',
                   done ? 'bg-primary' : 'bg-border',
                 )}
               />
@@ -82,5 +116,14 @@ export function Stepper({
         )
       })}
     </ol>
+  )
+
+  if (!scrollable) return list
+
+  // Hide the scrollbar — the active-step auto-scroll is the affordance.
+  return (
+    <div className="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {list}
+    </div>
   )
 }
