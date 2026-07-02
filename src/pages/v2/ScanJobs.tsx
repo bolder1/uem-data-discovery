@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Play, Radar } from 'lucide-react'
+import { Play, Radar, CheckCircle2, FileSearch, Database } from 'lucide-react'
 import { useDataDiscovery } from '@/store/DataDiscoveryContext'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   PageHeader,
+  SummaryCard,
   EmptyState,
   ScanStatusBadge,
   ProviderIcon,
@@ -35,6 +36,9 @@ export function ScanJobs() {
   const [recentId, setRecentId] = useState<string | null>(null)
   const [view, setView] = useState<ListView>('table')
 
+  const completed = scans.filter((s) => s.status === 'completed').length
+  const objects = scans.reduce((n, s) => n + s.objectsScanned, 0)
+  const sensitive = scans.reduce((n, s) => n + s.sensitiveFound, 0)
   const enabledPolicies = policies.filter((p) => p.status)
 
   const handleRun = (policyId: string) => {
@@ -98,6 +102,33 @@ export function ScanJobs() {
         />
       ) : (
         <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <SummaryCard
+              label="Total scans"
+              value={scans.length}
+              icon={Radar}
+              iconClass="bg-brand/10 text-brand"
+            />
+            <SummaryCard
+              label="Completed"
+              value={completed}
+              icon={CheckCircle2}
+              iconClass="bg-brand/10 text-brand"
+            />
+            <SummaryCard
+              label="Objects scanned"
+              value={objects.toLocaleString()}
+              icon={Database}
+              iconClass="bg-brand/10 text-brand"
+            />
+            <SummaryCard
+              label="Sensitive found"
+              value={sensitive.toLocaleString()}
+              icon={FileSearch}
+              iconClass="bg-brand/10 text-brand"
+            />
+          </div>
+
           {view === 'cards' ? (
             <ScanCards scans={scans} />
           ) : (
@@ -107,11 +138,11 @@ export function ScanJobs() {
                 <TableRow className="bg-secondary/40 hover:bg-secondary/40">
                   <TableHead>Policy</TableHead>
                   <TableHead>Source</TableHead>
-                  <TableHead className="text-right">Scope</TableHead>
+                  <TableHead>Scope</TableHead>
                   <TableHead>Started</TableHead>
                   <TableHead>Duration</TableHead>
-                  <TableHead className="text-right">Objects</TableHead>
-                  <TableHead className="text-right">Sensitive</TableHead>
+                  <TableHead>Objects</TableHead>
+                  <TableHead>Sensitive</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -149,7 +180,7 @@ export function ScanJobs() {
                           '—'
                         )}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="tabular-nums text-muted-foreground">
                         {s.scopeIds.length}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
@@ -158,10 +189,10 @@ export function ScanJobs() {
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDuration(s.durationSec)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="tabular-nums">
                         {s.objectsScanned.toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-right font-medium tabular-nums text-foreground">
+                      <TableCell className="font-medium tabular-nums text-foreground">
                         {s.sensitiveFound.toLocaleString()}
                       </TableCell>
                       <TableCell>

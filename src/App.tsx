@@ -12,7 +12,6 @@ import { SourcesCatalog } from '@/pages/v2/SourcesCatalog'
 import { ProviderDetail } from '@/pages/v2/ProviderDetail'
 import { ConfigureWizard } from '@/pages/v2/ConfigureWizard'
 import { PoliciesList } from '@/pages/v2/PoliciesList'
-import { PolicyDetail } from '@/pages/v2/PolicyDetail'
 import { ScanJobs } from '@/pages/v2/ScanJobs'
 import { Results } from '@/pages/v2/Results'
 
@@ -30,7 +29,6 @@ const router = createBrowserRouter([
           { path: 'sources/:provider/configure', element: <ConfigureWizard /> },
           { path: 'policies', element: <PoliciesList /> },
           { path: 'policies/new', element: <PoliciesList /> },
-          { path: 'policies/:policyId', element: <PolicyDetail /> },
           { path: 'scans', element: <ScanJobs /> },
           { path: 'results', element: <Results /> },
         ],

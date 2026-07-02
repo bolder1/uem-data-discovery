@@ -26,6 +26,23 @@ Risk: Low `slate` · Medium `amber` · High `orange` · Critical `red` — each 
 Inter (self-hosted via `@fontsource/inter`), 400–700. Dense tables, generous section headers,
 `tabular-nums` for figures.
 
+## Tables
+
+One alignment rule, applied to **every** table:
+
+- **Content is left-aligned.** `<TableHead>` and `<TableCell>` default to left
+  (base style in `ui/table.tsx`) — don't override it. **Never add `text-right`**,
+  including numeric columns; keep `tabular-nums` on figures so digits line up, but
+  the column stays left.
+- **The action column is centered.** The one column holding a row action — a row
+  menu (`MoreVertical` / `MoreHorizontal`), an icon button, or a navigate arrow
+  (`ArrowRight`) — gets `text-center` on **both** its `<TableHead>` and
+  `<TableCell>`. Nothing else is centered.
+
+**Content left, actions center. No right-aligned columns.** Covers `PolicyTable`,
+`ScopeTable` (v2 + discovery), `FindingsTable`, the Scan Jobs table, and the
+Connections table — keep new tables consistent.
+
 ## Laws applied (from the MiniOrange family)
 
 - **Status = dot + label.** `ConnectionStatusBadge`, `ScanStatusBadge`, `RiskBadge`, `ExposurePill`.

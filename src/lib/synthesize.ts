@@ -92,7 +92,6 @@ export function synthesizeFindings(
         filePath: `${scope.name}/${noun}/${fileName}`,
         fileTypeId: ft,
         sizeBytes: 4096 + ((si + 1) * (i + 1) * 51234) % 8_000_000,
-        risk: policy.risk,
         classificationIds: uniqueCls,
         publicAccess: scope.publicAccess,
         lastModified: at,

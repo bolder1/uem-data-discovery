@@ -1,12 +1,11 @@
 import { Fragment, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   ChevronRight,
   MoreVertical,
   Play,
   Trash2,
-  Eye,
-  Pencil,
+  Plus,
   Box,
   Check,
 } from 'lucide-react'
@@ -41,12 +40,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { RiskBadge, ProviderIcon } from '@/components/common'
+import { ProviderIcon } from '@/components/common'
 import { ExposurePill } from '@/components/discovery/ScopeTable'
 import { useDataDiscovery } from '@/store/DataDiscoveryContext'
-import { classificationById, fileTypeById } from '@/data'
+import { classificationById, fileTypeById, providerById } from '@/data'
 import { fileTypeIcon, classificationIcon } from '@/lib/icons'
-import { policySources, policyScopeNoun } from '@/lib/policySources'
 import { formatBytes, formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type {
@@ -96,35 +94,24 @@ function StatusPill({ status }: { status: FindingStatus }) {
 
 function PolicyRow({
   p,
-  sources,
+  cfg,
+  provider,
   showSource,
   onRun,
-  onEdit,
   togglePolicy,
   deletePolicy,
 }: {
   p: Policy
-  sources: Configuration[]
+  cfg?: Configuration
+  provider?: ReturnType<typeof providerById>
   showSource: boolean
   onRun?: (policy: Policy) => void
-  onEdit?: (policy: Policy) => void
   togglePolicy: (id: string) => void
   deletePolicy: (id: string) => void
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const navigate = useNavigate()
   return (
-    <TableRow
-      className="cursor-pointer hover:bg-accent/40"
-      onClick={(e) => {
-        // The whole row opens details, except its interactive controls.
-        if (
-          (e.target as HTMLElement).closest('button, a, [role="switch"], input')
-        )
-          return
-        navigate(`/data-discovery/policies/${p.id}`)
-      }}
-    >
+    <TableRow className="hover:bg-accent/40">
       <TableCell>
         <p className="font-medium text-foreground">{p.name}</p>
         {p.description && (
@@ -135,17 +122,14 @@ function PolicyRow({
       </TableCell>
       {showSource && (
         <TableCell>
-          {sources.length > 0 ? (
+          {cfg && provider ? (
             <div className="flex items-center gap-2">
-              {[...new Set(sources.map((c) => c.providerId))].slice(0, 3).map((pid) => (
-                <ProviderIcon key={pid} providerId={pid} size="sm" />
-              ))}
+              <ProviderIcon providerId={provider.id} size="sm" />
               <div className="leading-tight">
-                <p className="text-sm text-foreground">
-                  {sources.length === 1 ? sources[0].name : `${sources.length} sources`}
-                </p>
+                <p className="text-sm text-foreground">{cfg.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {p.scopeIds.length} {policyScopeNoun(sources).toLowerCase()}
+                  {p.scopeIds.length}{' '}
+                  {provider.scopeNounPlural.toLowerCase()}
                 </p>
               </div>
             </div>
@@ -175,7 +159,7 @@ function PolicyRow({
           )}
         </div>
       </TableCell>
-      <TableCell className="text-center">
+      <TableCell>
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="cursor-default text-sm tabular-nums text-foreground">
@@ -191,20 +175,16 @@ function PolicyRow({
         </Tooltip>
       </TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={p.status}
-            onCheckedChange={() => togglePolicy(p.id)}
-          />
-          <span className="text-xs text-muted-foreground">
-            {p.status ? 'Enabled' : 'Disabled'}
-          </span>
-        </div>
+        <Switch
+          checked={p.status}
+          onCheckedChange={() => togglePolicy(p.id)}
+          aria-label={p.status ? 'Enabled' : 'Disabled'}
+        />
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
         {formatDateTime(p.lastRun)}
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="text-center">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -216,22 +196,18 @@ function PolicyRow({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link to={`/data-discovery/policies/${p.id}`}>
-                <Eye className="size-4" />
-                View details
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit?.(p)}>
-              <Pencil className="size-4" />
-              Edit
-            </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!p.status}
               onClick={() => onRun?.(p)}
             >
               <Play className="size-4" />
-              Run scan
+              Run scan now
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/data-discovery/policies/new">
+                <Plus className="size-4" />
+                New policy
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -271,12 +247,10 @@ export function PolicyTable({
   policies,
   showSource = true,
   onRun,
-  onEdit,
 }: {
   policies: Policy[]
   showSource?: boolean
   onRun?: (policy: Policy) => void
-  onEdit?: (policy: Policy) => void
 }) {
   const { configurations, togglePolicy, deletePolicy } = useDataDiscovery()
   return (
@@ -286,25 +260,29 @@ export function PolicyTable({
           <TableHead>Policy</TableHead>
           {showSource && <TableHead>Data Source</TableHead>}
           <TableHead>Classifications</TableHead>
-          <TableHead className="text-center">File Types</TableHead>
+          <TableHead>File Types</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Last Run</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+          <TableHead className="text-center">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {policies.map((p) => (
-          <PolicyRow
-            key={p.id}
-            p={p}
-            sources={policySources(p, configurations)}
-            showSource={showSource}
-            onRun={onRun}
-            onEdit={onEdit}
-            togglePolicy={togglePolicy}
-            deletePolicy={deletePolicy}
-          />
-        ))}
+        {policies.map((p) => {
+          const cfg = configurations.find((c) => c.id === p.configurationId)
+          const provider = cfg && providerById(cfg.providerId)
+          return (
+            <PolicyRow
+              key={p.id}
+              p={p}
+              cfg={cfg}
+              provider={provider || undefined}
+              showSource={showSource}
+              onRun={onRun}
+              togglePolicy={togglePolicy}
+              deletePolicy={deletePolicy}
+            />
+          )
+        })}
       </TableBody>
     </Table>
   )
@@ -347,8 +325,8 @@ export function ScopeTable({
       <TableHeader>
         <TableRow className="bg-secondary/40 hover:bg-secondary/40">
           <TableHead>{noun}</TableHead>
-          <TableHead className="text-right">Objects</TableHead>
-          <TableHead className="text-right">Sensitive</TableHead>
+          <TableHead>Objects</TableHead>
+          <TableHead>Sensitive</TableHead>
           <TableHead>Exposure</TableHead>
           <TableHead>Last Scan</TableHead>
           <TableHead className="w-10" />
@@ -384,10 +362,10 @@ export function ScopeTable({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="tabular-nums">
                   {scope.objects}
                 </TableCell>
-                <TableCell className="text-right font-medium tabular-nums text-foreground">
+                <TableCell className="font-medium tabular-nums text-foreground">
                   {scope.sensitive}
                 </TableCell>
                 <TableCell>
@@ -462,10 +440,9 @@ export function FindingsTable({
           <TableHead>File</TableHead>
           <TableHead>Type</TableHead>
           <TableHead>Classifications</TableHead>
-          <TableHead>Risk</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Exposure</TableHead>
-          <TableHead className="text-right">Size</TableHead>
+          <TableHead>Size</TableHead>
           <TableHead>Last Modified</TableHead>
         </TableRow>
       </TableHeader>
@@ -512,15 +489,12 @@ export function FindingsTable({
               </div>
             </TableCell>
             <TableCell>
-              <RiskBadge risk={f.risk} />
-            </TableCell>
-            <TableCell>
               <StatusPill status={status} />
             </TableCell>
             <TableCell>
               <ExposurePill public={f.publicAccess} />
             </TableCell>
-            <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+            <TableCell className="text-sm tabular-nums text-muted-foreground">
               {formatBytes(f.sizeBytes)}
             </TableCell>
             <TableCell className="text-sm text-muted-foreground">

@@ -14,8 +14,6 @@ export type ConnectionStatus =
   | 'not-configured'
   | 'scanning'
 
-export type Risk = 'low' | 'medium' | 'high' | 'critical'
-
 export type ScanStatus = 'completed' | 'running' | 'failed' | 'queued'
 
 /** Triage state of a discovered finding. */
@@ -85,7 +83,6 @@ export interface Policy {
   id: string
   name: string
   description?: string
-  risk: Risk
   status: boolean
   fileTypeIds: string[]
   classificationIds: string[]
@@ -130,7 +127,6 @@ export interface Finding {
   filePath: string
   fileTypeId: string
   sizeBytes: number
-  risk: Risk
   classificationIds: string[]
   publicAccess: boolean
   lastModified: string

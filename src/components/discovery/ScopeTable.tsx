@@ -59,8 +59,8 @@ export function ScopeTable({
       <TableHeader>
         <TableRow>
           <TableHead>{noun}</TableHead>
-          <TableHead className="text-right">Objects</TableHead>
-          <TableHead className="text-right">Sensitive</TableHead>
+          <TableHead>Objects</TableHead>
+          <TableHead>Sensitive</TableHead>
           <TableHead>Exposure</TableHead>
           <TableHead>Last Scan</TableHead>
           <TableHead className="w-10" />
@@ -95,10 +95,10 @@ export function ScopeTable({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="tabular-nums">
                   {scope.objects}
                 </TableCell>
-                <TableCell className="text-right tabular-nums font-medium text-foreground">
+                <TableCell className="tabular-nums font-medium text-foreground">
                   {scope.sensitive}
                 </TableCell>
                 <TableCell>

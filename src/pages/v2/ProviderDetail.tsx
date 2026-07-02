@@ -48,7 +48,6 @@ import {
 } from '@/components/common'
 import { PolicyTable, ScopeTable, FindingsTable } from '@/components/v2/tables'
 import { ConfigureDrawer } from '@/components/v2/ConfigureDrawer'
-import { policySourceIds } from '@/lib/policySources'
 import type { Configuration, Policy } from '@/types'
 
 export function ProviderDetail({
@@ -95,9 +94,7 @@ export function ProviderDetail({
 
   const configs = configurations.filter((c) => c.providerId === provider.id)
   const configIds = new Set(configs.map((c) => c.id))
-  const providerPolicies = policies.filter((p) =>
-    policySourceIds(p).some((id) => configIds.has(id)),
-  )
+  const providerPolicies = policies.filter((p) => configIds.has(p.configurationId))
   const providerFindings = findings.filter((f) => configIds.has(f.configurationId))
   const scopeRows = configs.flatMap((c) =>
     c.scopes.map((scope) => ({ scope, configName: c.name })),
@@ -226,7 +223,7 @@ export function ProviderDetail({
               onDelete={deleteConfiguration}
               onEdit={() => setEditConfig(cfg)}
               dependentPolicyCount={
-                policies.filter((p) => policySourceIds(p).includes(cfg.id)).length
+                policies.filter((p) => p.configurationId === cfg.id).length
               }
             />
           ))}
