@@ -1,11 +1,12 @@
 import { Fragment, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ChevronRight,
   MoreVertical,
   Play,
   Trash2,
-  Plus,
+  Eye,
+  Pencil,
   Box,
   Check,
 } from 'lucide-react'
@@ -43,9 +44,10 @@ import {
 import { ProviderIcon } from '@/components/common'
 import { ExposurePill } from '@/components/discovery/ScopeTable'
 import { useDataDiscovery } from '@/store/DataDiscoveryContext'
-import { classificationById, fileTypeById, providerById } from '@/data'
+import { classificationById, fileTypeById } from '@/data'
 import { fileTypeIcon, classificationIcon } from '@/lib/icons'
 import { formatBytes, formatDateTime } from '@/lib/format'
+import { policySources, policyScopeNoun } from '@/lib/policySources'
 import { cn } from '@/lib/utils'
 import type {
   Configuration,
@@ -94,24 +96,35 @@ function StatusPill({ status }: { status: FindingStatus }) {
 
 function PolicyRow({
   p,
-  cfg,
-  provider,
+  sources,
   showSource,
   onRun,
+  onEdit,
   togglePolicy,
   deletePolicy,
 }: {
   p: Policy
-  cfg?: Configuration
-  provider?: ReturnType<typeof providerById>
+  sources: Configuration[]
   showSource: boolean
   onRun?: (policy: Policy) => void
+  onEdit?: (policy: Policy) => void
   togglePolicy: (id: string) => void
   deletePolicy: (id: string) => void
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const navigate = useNavigate()
   return (
-    <TableRow className="hover:bg-accent/40">
+    <TableRow
+      className="cursor-pointer hover:bg-accent/40"
+      onClick={(e) => {
+        // The whole row opens details, except its interactive controls.
+        if (
+          (e.target as HTMLElement).closest('button, a, [role="switch"], input')
+        )
+          return
+        navigate(`/data-discovery/policies/${p.id}`)
+      }}
+    >
       <TableCell>
         <p className="font-medium text-foreground">{p.name}</p>
         {p.description && (
@@ -122,14 +135,17 @@ function PolicyRow({
       </TableCell>
       {showSource && (
         <TableCell>
-          {cfg && provider ? (
+          {sources.length > 0 ? (
             <div className="flex items-center gap-2">
-              <ProviderIcon providerId={provider.id} size="sm" />
+              {[...new Set(sources.map((c) => c.providerId))].slice(0, 3).map((pid) => (
+                <ProviderIcon key={pid} providerId={pid} size="sm" />
+              ))}
               <div className="leading-tight">
-                <p className="text-sm text-foreground">{cfg.name}</p>
+                <p className="text-sm text-foreground">
+                  {sources.length === 1 ? sources[0].name : `${sources.length} sources`}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  {p.scopeIds.length}{' '}
-                  {provider.scopeNounPlural.toLowerCase()}
+                  {p.scopeIds.length} {policyScopeNoun(sources).toLowerCase()}
                 </p>
               </div>
             </div>
@@ -196,18 +212,22 @@ function PolicyRow({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link to={`/data-discovery/policies/${p.id}`}>
+                <Eye className="size-4" />
+                View details
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEdit?.(p)}>
+              <Pencil className="size-4" />
+              Edit
+            </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!p.status}
               onClick={() => onRun?.(p)}
             >
               <Play className="size-4" />
-              Run scan now
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/data-discovery/policies/new">
-                <Plus className="size-4" />
-                New policy
-              </Link>
+              Run scan
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -247,10 +267,12 @@ export function PolicyTable({
   policies,
   showSource = true,
   onRun,
+  onEdit,
 }: {
   policies: Policy[]
   showSource?: boolean
   onRun?: (policy: Policy) => void
+  onEdit?: (policy: Policy) => void
 }) {
   const { configurations, togglePolicy, deletePolicy } = useDataDiscovery()
   return (
@@ -267,22 +289,18 @@ export function PolicyTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {policies.map((p) => {
-          const cfg = configurations.find((c) => c.id === p.configurationId)
-          const provider = cfg && providerById(cfg.providerId)
-          return (
-            <PolicyRow
-              key={p.id}
-              p={p}
-              cfg={cfg}
-              provider={provider || undefined}
-              showSource={showSource}
-              onRun={onRun}
-              togglePolicy={togglePolicy}
-              deletePolicy={deletePolicy}
-            />
-          )
-        })}
+        {policies.map((p) => (
+          <PolicyRow
+            key={p.id}
+            p={p}
+            sources={policySources(p, configurations)}
+            showSource={showSource}
+            onRun={onRun}
+            onEdit={onEdit}
+            togglePolicy={togglePolicy}
+            deletePolicy={deletePolicy}
+          />
+        ))}
       </TableBody>
     </Table>
   )

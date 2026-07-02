@@ -35,6 +35,7 @@ export function PoliciesList() {
   // open the create drawer over the list — no separate page.
   const fromRoute = location.pathname.endsWith('/new')
   const [createOpen, setCreateOpen] = useState(fromRoute)
+  const [editPolicy, setEditPolicy] = useState<Policy | null>(null)
   const seedConfigId = (location.state as { configurationId?: string } | null)
     ?.configurationId
   useEffect(() => {
@@ -191,7 +192,7 @@ export function PoliciesList() {
           ) : (
             <>
               <Card className="p-0">
-                <PolicyTable policies={pageRows} onRun={onRun} />
+                <PolicyTable policies={pageRows} onRun={onRun} onEdit={setEditPolicy} />
               </Card>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground">
@@ -230,6 +231,14 @@ export function PoliciesList() {
 
       {createOpen && (
         <PolicyDrawer open onOpenChange={closeCreate} initialConfigId={seedConfigId} />
+      )}
+      {editPolicy && (
+        <PolicyDrawer
+          key={editPolicy.id}
+          open
+          onOpenChange={() => setEditPolicy(null)}
+          policy={editPolicy}
+        />
       )}
     </div>
   )

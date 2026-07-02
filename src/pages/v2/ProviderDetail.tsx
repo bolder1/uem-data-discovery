@@ -48,6 +48,8 @@ import {
 } from '@/components/common'
 import { PolicyTable, ScopeTable, FindingsTable } from '@/components/v2/tables'
 import { ConfigureDrawer } from '@/components/v2/ConfigureDrawer'
+import { PolicyDrawer } from '@/components/v2/PolicyDrawer'
+import { policySourceIds } from '@/lib/policySources'
 import type { Configuration, Policy } from '@/types'
 
 export function ProviderDetail({
@@ -74,6 +76,7 @@ export function ProviderDetail({
     )
   const [addOpen, setAddOpen] = useState(false)
   const [editConfig, setEditConfig] = useState<Configuration | null>(null)
+  const [editPolicy, setEditPolicy] = useState<Policy | null>(null)
 
   if (!provider || provider.comingSoon) {
     return (
@@ -94,7 +97,9 @@ export function ProviderDetail({
 
   const configs = configurations.filter((c) => c.providerId === provider.id)
   const configIds = new Set(configs.map((c) => c.id))
-  const providerPolicies = policies.filter((p) => configIds.has(p.configurationId))
+  const providerPolicies = policies.filter((p) =>
+    policySourceIds(p).some((id) => configIds.has(id)),
+  )
   const providerFindings = findings.filter((f) => configIds.has(f.configurationId))
   const scopeRows = configs.flatMap((c) =>
     c.scopes.map((scope) => ({ scope, configName: c.name })),
@@ -223,7 +228,7 @@ export function ProviderDetail({
               onDelete={deleteConfiguration}
               onEdit={() => setEditConfig(cfg)}
               dependentPolicyCount={
-                policies.filter((p) => p.configurationId === cfg.id).length
+                policies.filter((p) => policySourceIds(p).includes(cfg.id)).length
               }
             />
           ))}
@@ -236,6 +241,7 @@ export function ProviderDetail({
                 policies={providerPolicies}
                 showSource={false}
                 onRun={onRun}
+                onEdit={setEditPolicy}
               />
             </Card>
           ) : (
@@ -298,6 +304,14 @@ export function ProviderDetail({
           onOpenChange={(o) => {
             if (!o) setEditConfig(null)
           }}
+        />
+      )}
+      {editPolicy && (
+        <PolicyDrawer
+          key={editPolicy.id}
+          open
+          onOpenChange={() => setEditPolicy(null)}
+          policy={editPolicy}
         />
       )}
     </div>
