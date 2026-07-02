@@ -1,0 +1,124 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  miniOrange Endpoint Defence — Data Discovery design tokens.
+  Calm cool-neutral canvas (no cream). Blue primary CTAs, orange brand accent.
+  See DESIGN.md for the full system.
+*/
+:root {
+  --radius: 0.625rem;
+
+  --background: 210 40% 98%; /* slate-50 canvas */
+  --foreground: 222 47% 11%; /* slate-900 */
+
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+
+  --primary: 221 83% 53%; /* blue-600 CTA */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 210 40% 96%; /* slate-100 */
+  --secondary-foreground: 222 47% 11%;
+
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%; /* slate-500 */
+
+  --accent: 214 95% 96%; /* blue-50 hover wash */
+  --accent-foreground: 221 83% 41%;
+
+  --destructive: 0 72% 51%; /* red-600 */
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 214 32% 91%; /* slate-200 */
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+
+  --brand: 221 83% 53%; /* brand accent — primary blue */
+  --brand-foreground: 0 0% 100%;
+
+  /* status */
+  --success: 142 71% 45%;
+  --warning: 38 92% 50%;
+  --danger: 0 72% 51%;
+
+  /* findings chart */
+  --chart-1: 221 83% 53%;
+  --chart-2: 24 95% 53%;
+  --chart-3: 142 71% 45%;
+  --chart-4: 38 92% 50%;
+  --chart-5: 280 65% 60%;
+
+  /* sidebar */
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222 30% 24%;
+  --sidebar-muted: 215 16% 47%;
+  --sidebar-accent: 214 95% 96%;
+  --sidebar-accent-foreground: 221 83% 41%;
+  --sidebar-border: 214 32% 91%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-brand: hsl(var(--brand));
+  --color-brand-foreground: hsl(var(--brand-foreground));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-danger: hsl(var(--danger));
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-muted: hsl(var(--sidebar-muted));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
