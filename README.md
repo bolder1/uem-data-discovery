@@ -20,7 +20,7 @@ npm run build    # type-check + production bundle
 | Area | Route | Notes |
 |---|---|---|
 | Dashboard | `/data-discovery` | Summary cards, end-to-end workflow tracker, findings-by-classification, recent scans |
-| Data Sources | `/data-discovery/sources` | Card / grid / list catalog. AWS S3 + Azure Blob live; Google Drive + Endpoint "coming soon" |
+| Data Sources | `/data-discovery/sources` | Two tabs: **Configured** (table of every connection, with search/filters and row actions) and **Connector Store** (marketplace of all connectors). Tab is URL-backed (`?tab=`) |
 | Source detail | `/data-discovery/sources/:provider` | Empty state → tabs: Configurations · Policies · Results · Containers/Buckets |
 | Configure | `…/sources/:provider/configure` | 4-step wizard: credentials → test → select scope → review → audit-stamped save |
 | Policies | `/data-discovery/policies` | List + 6-step wizard with conditional **Buckets (AWS) / Containers (Azure)** step |

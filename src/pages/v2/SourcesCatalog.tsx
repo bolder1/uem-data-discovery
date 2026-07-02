@@ -1,18 +1,22 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowRight,
-  Plus,
-  LayoutGrid,
-  Columns2,
-  Search,
   ArrowUpDown,
+  Boxes,
   CalendarClock,
+  DatabaseZap,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Search,
+  Store,
+  Trash2,
 } from 'lucide-react'
-import { providers } from '@/data'
+import { providerById, providers } from '@/data'
 import { useDataDiscovery } from '@/store/DataDiscoveryContext'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -21,106 +25,400 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { PageHeader, ProviderIcon } from '@/components/common'
-import { ProviderDetail } from '@/pages/v2/ProviderDetail'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  ConnectionStatusBadge,
+  EmptyState,
+  PageHeader,
+  ProviderIcon,
+} from '@/components/common'
 import { ConfigureDrawer } from '@/components/v2/ConfigureDrawer'
-import { formatDate } from '@/lib/format'
+import { STATUS_META, formatBytes, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { Provider } from '@/types'
+import type { Configuration, ConnectionStatus, Provider } from '@/types'
 
-type View = 'cards' | 'split'
-
-const VIEWS: {
-  id: View
-  icon: typeof LayoutGrid
-  label: string
-  disabled?: boolean
-}[] = [
-  { id: 'cards', icon: LayoutGrid, label: 'Cards' },
-  { id: 'split', icon: Columns2, label: 'Split', disabled: true },
-]
-
-function useStats() {
-  const { configurations } = useDataDiscovery()
-  return (p: Provider) => {
-    const cfgs = configurations.filter((c) => c.providerId === p.id)
-    const allScopes = cfgs.flatMap((c) => c.scopes)
-    const lastAdded = cfgs.length
-      ? cfgs.map((c) => c.createdAt).sort().at(-1)
-      : undefined
-    return {
-      count: cfgs.length,
-      scopes: allScopes.length,
-      sensitive: allScopes.reduce((n, s) => n + s.sensitive, 0),
-      data: allScopes.reduce((n, s) => n + s.sizeBytes, 0),
-      lastAdded,
-    }
-  }
-}
-
-function ViewToggle({ value, onChange }: { value: View; onChange: (v: View) => void }) {
-  return (
-    <div className="inline-flex items-center rounded-lg border bg-card p-0.5">
-      {VIEWS.map(({ id, icon: Icon, label, disabled }) => (
-        <button
-          key={id}
-          type="button"
-          aria-label={`${label} view`}
-          aria-pressed={value === id}
-          disabled={disabled}
-          title={disabled ? `${label} view is off for now` : undefined}
-          onClick={() => !disabled && onChange(id)}
-          className={cn(
-            'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-            value === id
-              ? 'bg-secondary text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground',
-            disabled && 'cursor-not-allowed opacity-40 hover:text-muted-foreground',
-          )}
-        >
-          <Icon className="size-3.5" />
-          <span className="hidden sm:inline">{label}</span>
-        </button>
-      ))}
-    </div>
-  )
-}
+/* The page splits into two jobs-to-be-done:
+   — "Configured": everything already connected, as a dense manageable table.
+   — "Connector Store": the marketplace of every connector we can add.
+   The active tab lives in the URL (?tab=…) so deep links and back/forward
+   keep working; first visit lands on whichever tab has something to show. */
 
 export function SourcesCatalog() {
-  const [view, setView] = useState<View>('cards')
-  const stats = useStats()
+  const { configurations } = useDataDiscovery()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab =
+    searchParams.get('tab') ?? (configurations.length ? 'configured' : 'store')
+  const setTab = (v: string) =>
+    setSearchParams(
+      (p) => {
+        p.set('tab', v)
+        return p
+      },
+      { replace: true },
+    )
 
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-6',
-        view === 'split' && 'lg:min-h-0 lg:flex-1',
-      )}
-    >
+    <div className="flex flex-col gap-6">
       <PageHeader
-        className="shrink-0"
         title="Data Sources"
-        description="Connect cloud storage and endpoints, then scan them for sensitive data. Pick a source to add a configuration."
-        actions={<ViewToggle value={view} onChange={setView} />}
+        description="Manage your configured connectors, or browse the store to connect a new source."
+        actions={
+          tab === 'configured' && configurations.length > 0 ? (
+            <Button onClick={() => setTab('store')}>
+              <Plus className="size-4" />
+              Add connector
+            </Button>
+          ) : undefined
+        }
       />
 
-      {view === 'cards' && <CardsView stats={stats} />}
-      {view === 'split' && <SplitView stats={stats} />}
+      <Tabs value={tab} onValueChange={setTab} className="gap-4">
+        <TabsList>
+          <TabsTrigger value="configured">
+            <Boxes className="size-4" />
+            Configured
+            <span className="ml-1 text-xs text-muted-foreground">
+              {configurations.length}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="store">
+            <Store className="size-4" />
+            Connector Store
+            <span className="ml-1 text-xs text-muted-foreground">
+              {providers.length}
+            </span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="configured" className="flex flex-col gap-4">
+          <ConfiguredTab onBrowseStore={() => setTab('store')} />
+        </TabsContent>
+        <TabsContent value="store" className="flex flex-col gap-4">
+          <StoreTab />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
 
-type Stats = (p: Provider) => {
-  count: number
-  scopes: number
-  sensitive: number
-  data: number
-  lastAdded: string | undefined
+/* ---------------------------------- Configured ---------------------------------- */
+/* One row per connection across all providers. Rows open the provider detail;
+   per-row actions cover edit and removal (with a dependency-naming confirm). */
+
+const CONNECTION_STATUSES = Object.entries(STATUS_META) as [
+  ConnectionStatus,
+  { label: string },
+][]
+
+function ConfiguredTab({ onBrowseStore }: { onBrowseStore: () => void }) {
+  const navigate = useNavigate()
+  const { configurations, policies, deleteConfiguration } = useDataDiscovery()
+  const [query, setQuery] = useState('')
+  const [providerFilter, setProviderFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [editConfig, setEditConfig] = useState<Configuration | null>(null)
+  const [removeConfig, setRemoveConfig] = useState<Configuration | null>(null)
+
+  if (configurations.length === 0) {
+    return (
+      <EmptyState
+        icon={DatabaseZap}
+        title="No connectors configured yet"
+        description="Connect your first data source from the connector store, then create a policy and run a scan."
+        action={
+          <Button onClick={onBrowseStore}>
+            <Store className="size-4" />
+            Browse connector store
+          </Button>
+        }
+      />
+    )
+  }
+
+  // Only providers that actually have connections show up as filter options.
+  const connectedProviders = providers.filter((p) =>
+    configurations.some((c) => c.providerId === p.id),
+  )
+
+  const q = query.trim().toLowerCase()
+  const rows = configurations
+    .filter((c) => {
+      const provider = providerById(c.providerId)
+      const matchesQuery =
+        !q ||
+        `${c.name} ${provider?.name ?? ''} ${provider?.vendor ?? ''}`
+          .toLowerCase()
+          .includes(q)
+      const matchesProvider =
+        providerFilter === 'all' || c.providerId === providerFilter
+      const matchesStatus = statusFilter === 'all' || c.status === statusFilter
+      return matchesQuery && matchesProvider && matchesStatus
+    })
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+  const dependentPolicyCount = (cfg: Configuration) =>
+    policies.filter((p) =>
+      (p.configurationIds ?? [p.configurationId]).includes(cfg.id),
+    ).length
+
+  const filtersActive =
+    !!q || providerFilter !== 'all' || statusFilter !== 'all'
+  const reset = () => {
+    setQuery('')
+    setProviderFilter('all')
+    setStatusFilter('all')
+  }
+
+  const editProvider = editConfig && providerById(editConfig.providerId)
+  const removeDependents = removeConfig ? dependentPolicyCount(removeConfig) : 0
+
+  return (
+    <>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search configured connectors…"
+            className="h-9 pl-9"
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:flex">
+          <Select value={providerFilter} onValueChange={setProviderFilter}>
+            <SelectTrigger className="h-9 w-full lg:w-48">
+              <SelectValue placeholder="All sources" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All sources</SelectItem>
+              {connectedProviders.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-full lg:w-40">
+              <SelectValue placeholder="Any status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any status</SelectItem>
+              {CONNECTION_STATUSES.map(([value, meta]) => (
+                <SelectItem key={value} value={value}>
+                  {meta.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">
+          No configured connectors match these filters.
+          {filtersActive && (
+            <Button variant="outline" size="sm" onClick={reset}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+      ) : (
+        <Card className="gap-0 overflow-hidden p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-secondary/40 hover:bg-secondary/40">
+                <TableHead>Configuration</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Scope</TableHead>
+                <TableHead className="text-right">Sensitive</TableHead>
+                <TableHead className="text-right">Data</TableHead>
+                <TableHead>Added</TableHead>
+                <TableHead className="w-12 text-right">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((cfg) => {
+                const provider = providerById(cfg.providerId)
+                if (!provider) return null
+                const sensitive = cfg.scopes.reduce((n, s) => n + s.sensitive, 0)
+                const size = cfg.scopes.reduce((n, s) => n + s.sizeBytes, 0)
+                return (
+                  <TableRow
+                    key={cfg.id}
+                    className="cursor-pointer hover:bg-accent/40"
+                    onClick={() =>
+                      navigate(`/data-discovery/sources/${provider.id}`)
+                    }
+                  >
+                    <TableCell>
+                      <p className="font-medium text-foreground">{cfg.name}</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2.5">
+                        <ProviderIcon providerId={provider.id} size="sm" />
+                        <div className="leading-tight">
+                          <p className="text-sm text-foreground">
+                            {provider.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {provider.category}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <ConnectionStatusBadge status={cfg.status} pill />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {cfg.scopes.length}{' '}
+                      {(cfg.scopes.length === 1
+                        ? provider.scopeNoun
+                        : provider.scopeNounPlural
+                      ).toLowerCase()}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right tabular-nums',
+                        sensitive > 0
+                          ? 'font-medium text-foreground'
+                          : 'text-muted-foreground',
+                      )}
+                    >
+                      {sensitive}
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                      {formatBytes(size)}
+                    </TableCell>
+                    <TableCell>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDate(cfg.createdAt)}
+                      </p>
+                      <p className="text-xs text-muted-foreground/70">
+                        by {cfg.createdBy}
+                      </p>
+                    </TableCell>
+                    <TableCell
+                      className="text-right"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label={`Actions for ${cfg.name}`}
+                            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                          >
+                            <MoreVertical className="size-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() =>
+                              navigate(`/data-discovery/sources/${provider.id}`)
+                            }
+                          >
+                            <ArrowRight className="size-4" />
+                            Open source
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setEditConfig(cfg)}>
+                            <Pencil className="size-4" />
+                            Edit configuration
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setRemoveConfig(cfg)}
+                          >
+                            <Trash2 className="size-4" />
+                            Remove connection
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      {editConfig && editProvider && (
+        <ConfigureDrawer
+          provider={editProvider}
+          editConfig={editConfig}
+          open
+          onOpenChange={(o) => {
+            if (!o) setEditConfig(null)
+          }}
+        />
+      )}
+
+      <AlertDialog
+        open={!!removeConfig}
+        onOpenChange={(o) => {
+          if (!o) setRemoveConfig(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove connection?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{removeConfig?.name}” will be removed. {removeDependents}{' '}
+              {removeDependents === 1 ? 'policy targets' : 'policies target'}{' '}
+              this connection and will stop working.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (removeConfig) deleteConfiguration(removeConfig.id)
+                setRemoveConfig(null)
+              }}
+            >
+              Remove connection
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
 }
 
-/* ------------------------------------ Cards ------------------------------------ */
-/* Compact 4-up grid. Not-yet-connected sources offer a first-time Configure
-   action right on the card; after the discovery flow returns we go to detail. */
+/* ------------------------------------ Store ------------------------------------ */
+/* Marketplace of every connector. Not-yet-connected sources offer a first-time
+   Configure action right on the card; connected ones link to their detail page. */
 
 // Connection status as a quiet line under the provider name (dot + short text),
 // not a pill to the right of the name — so the name keeps the full card width
@@ -197,13 +495,29 @@ function CardGlow() {
   )
 }
 
-function CardsView({ stats }: { stats: Stats }) {
+function StoreTab() {
   const navigate = useNavigate()
+  const { configurations } = useDataDiscovery()
   const [configureProvider, setConfigureProvider] = useState<Provider | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('all')
   const [status, setStatus] = useState('all')
   const [sort, setSort] = useState('default')
+
+  const stats = (p: Provider) => {
+    const cfgs = configurations.filter((c) => c.providerId === p.id)
+    const allScopes = cfgs.flatMap((c) => c.scopes)
+    const lastAdded = cfgs.length
+      ? cfgs.map((c) => c.createdAt).sort().at(-1)
+      : undefined
+    return {
+      count: cfgs.length,
+      scopes: allScopes.length,
+      sensitive: allScopes.reduce((n, s) => n + s.sensitive, 0),
+      data: allScopes.reduce((n, s) => n + s.sizeBytes, 0),
+      lastAdded,
+    }
+  }
 
   const q = query.trim().toLowerCase()
   let rows = providers
@@ -254,7 +568,7 @@ function CardsView({ stats }: { stats: Stats }) {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search data sources…"
+            placeholder="Search connectors…"
             className="h-9 pl-9"
           />
         </div>
@@ -302,7 +616,7 @@ function CardsView({ stats }: { stats: Stats }) {
 
       {rows.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">
-          No data sources match these filters.
+          No connectors match these filters.
           {filtersActive && (
             <Button variant="outline" size="sm" onClick={reset}>
               Clear filters
@@ -447,46 +761,5 @@ function CardsView({ stats }: { stats: Stats }) {
         />
       )}
     </>
-  )
-}
-
-/* ------------------------------------ Split ------------------------------------ */
-/* Disabled for now (kept for later). Master–detail: left list, right inner page. */
-
-function SplitView({ stats }: { stats: Stats }) {
-  const [selectedId, setSelectedId] = useState(providers[0].id)
-
-  return (
-    <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[280px_1fr]">
-      <Card className="gap-0 p-2 lg:overflow-y-auto">
-        {providers.map((p) => {
-          const on = p.id === selectedId
-          const st = stats(p)
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setSelectedId(p.id)}
-              className={cn(
-                'flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',
-                on ? 'bg-brand/5' : 'hover:bg-secondary/60',
-              )}
-            >
-              <ProviderIcon providerId={p.id} size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {p.comingSoon ? 'Coming soon' : `${st.count} configured`}
-                </p>
-              </div>
-            </button>
-          )
-        })}
-      </Card>
-
-      <div className="min-w-0 lg:overflow-y-auto">
-        <ProviderDetail key={selectedId} providerId={selectedId} embedded />
-      </div>
-    </div>
   )
 }
