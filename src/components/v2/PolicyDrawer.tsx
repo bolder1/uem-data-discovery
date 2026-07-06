@@ -1,6 +1,12 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Play, Check } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  ShieldCheck,
+  Check,
+  ChevronDown,
+} from 'lucide-react'
 import {
   classifications,
   fileTypes,
@@ -32,9 +38,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Stepper, AuditStamp, ProviderIcon } from '@/components/common'
+import { Stepper, ProviderIcon } from '@/components/common'
 import { ExposurePill } from '@/components/discovery/ScopeTable'
-import { SearchableSelect, type SelectOption } from '@/components/v2/SearchableSelect'
+import { SearchableSelect } from '@/components/v2/SearchableSelect'
 import { Combobox, type FilterGroup } from '@/components/v2/Combobox'
 import { fileTypeIcon, classificationIcon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
@@ -57,50 +63,68 @@ export function PolicyDrawer({
   open,
   onOpenChange,
   initialConfigId,
+  editPolicy,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   /** Pre-select a connection (e.g. arriving from "Create policy" on a source). */
   initialConfigId?: string
+  /** When set, the drawer edits this policy instead of creating a new one. */
+  editPolicy?: Policy
 }) {
   const navigate = useNavigate()
-  const { configurations, addPolicy, runScan } = useDataDiscovery()
+  const { configurations, addPolicy, updatePolicy } = useDataDiscovery()
+  const isEdit = !!editPolicy
 
   const initialCfg = initialConfigId
     ? configurations.find((c) => c.id === initialConfigId)
     : undefined
+  const editConfigIds =
+    editPolicy?.configurationIds ??
+    (editPolicy ? [editPolicy.configurationId] : [])
 
   const [step, setStep] = useState(0)
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [enabled, setEnabled] = useState(true)
+  const [name, setName] = useState(editPolicy?.name ?? '')
+  const [description, setDescription] = useState(editPolicy?.description ?? '')
+  const [enabled, setEnabled] = useState(editPolicy?.status ?? true)
 
   // Step 2 — single data type (provider), then many sources within that type.
-  const [dataType, setDataType] = useState(initialCfg?.providerId ?? '')
+  const [dataType, setDataType] = useState(
+    () =>
+      (editConfigIds.length
+        ? configurations.find((c) => c.id === editConfigIds[0])?.providerId
+        : initialCfg?.providerId) ?? '',
+  )
   const [configIds, setConfigIds] = useState<Set<string>>(
-    () => new Set(initialCfg ? [initialCfg.id] : []),
+    () =>
+      new Set(editConfigIds.length ? editConfigIds : initialCfg ? [initialCfg.id] : []),
   )
 
-  const [fileTypeSet, setFileTypeSet, toggleFileType] = useToggleSet()
-  const [classSet, setClassSet, toggleClass] = useToggleSet()
-  const [scopeSet, setScopeSet, toggleScope] = useToggleSet(
-    () => new Set(initialCfg?.scopes.map((s) => s.id) ?? []),
+  const [fileTypeSet, setFileTypeSet, toggleFileType] = useToggleSet(
+    () => new Set(editPolicy?.fileTypeIds ?? []),
   )
+  const [classSet, setClassSet, toggleClass] = useToggleSet(
+    () => new Set(editPolicy?.classificationIds ?? []),
+  )
+  const [scopeSet, setScopeSet, toggleScope] = useToggleSet(
+    () =>
+      new Set(editPolicy?.scopeIds ?? initialCfg?.scopes.map((s) => s.id) ?? []),
+  )
+  // Which source items have their "experience" (scope picker) expanded.
+  const [expandedSources, setExpandedSources, toggleExpandedSource] = useToggleSet(
+    () => new Set(editConfigIds.length ? editConfigIds : initialCfg ? [initialCfg.id] : []),
+  )
+  const expandSource = (id: string) =>
+    setExpandedSources((prev) => new Set(prev).add(id))
   const [confirmClose, setConfirmClose] = useState(false)
-  const [saved, setSaved] = useState<Policy | null>(null)
 
   const provider = dataType ? providerById(dataType) : undefined
-  const noun = provider?.scopeNounPlural ?? 'targets'
 
-  // Step 5's label tracks the selected data source's unit — Buckets (S3),
-  // Containers (Azure), Schemas (Postgres), etc. — instead of a generic "Scope".
-  const scopeLabel = provider?.scopeNounPlural ?? 'Buckets'
   const STEPS = [
     { key: 'basics', label: 'Basics' },
     { key: 'source', label: 'Data source' },
     { key: 'filetypes', label: 'File types' },
     { key: 'classification', label: 'Classification' },
-    { key: 'scope', label: scopeLabel },
     { key: 'review', label: 'Review' },
   ]
   const selectedConfigs = configurations.filter((c) => configIds.has(c.id))
@@ -133,15 +157,6 @@ export function PolicyDrawer({
   ]
 
   const configsForType = configurations.filter((c) => c.providerId === dataType)
-  const scopeOptions: SelectOption[] = selectedConfigs.flatMap((c) =>
-    c.scopes.map((s) => ({
-      id: s.id,
-      label: s.name,
-      description: `${c.name} · ${s.objects} objects · ${s.sensitive} sensitive · ${formatBytes(
-        s.sizeBytes,
-      )}`,
-    })),
-  )
   const totalScopes = selectedConfigs.reduce((n, c) => n + c.scopes.length, 0)
 
   // Switching the data type resets the source + scope picks below it.
@@ -150,7 +165,8 @@ export function PolicyDrawer({
     setConfigIds(new Set())
     setScopeSet(new Set())
   }
-  // Toggling a source also adds/removes its scopes (scope step stays pre-filled).
+  // Toggling a source also adds/removes its scopes (its "experience" stays
+  // pre-filled with everything selected, then expands so the user can refine it).
   const toggleSource = (id: string) => {
     const cfg = configurations.find((c) => c.id === id)
     const ids = cfg?.scopes.map((s) => s.id) ?? []
@@ -166,6 +182,7 @@ export function PolicyDrawer({
       ids.forEach((x) => (on ? n.delete(x) : n.add(x)))
       return n
     })
+    if (!on) expandSource(id)
   }
   // Bulk add/remove a set of sources (respects the dropdown's active filter)
   // and keeps their scopes in sync.
@@ -186,25 +203,22 @@ export function PolicyDrawer({
   }
 
   const dirty =
-    !saved &&
-    (name.trim().length > 0 ||
-      !!dataType ||
-      configIds.size > 0 ||
-      fileTypeSet.size > 0 ||
-      classSet.size > 0)
+    name.trim().length > 0 ||
+    !!dataType ||
+    configIds.size > 0 ||
+    fileTypeSet.size > 0 ||
+    classSet.size > 0
 
   const canNext =
     step === 0
       ? name.trim().length > 0
       : step === 1
-        ? !!dataType && configIds.size > 0
+        ? !!dataType && configIds.size > 0 && scopeSet.size > 0
         : step === 2
           ? fileTypeSet.size > 0
           : step === 3
             ? classSet.size > 0
-            : step === 4
-              ? scopeSet.size > 0
-              : true
+            : true
 
   const requestClose = () => {
     if (dirty) setConfirmClose(true)
@@ -213,50 +227,41 @@ export function PolicyDrawer({
 
   const handleCreate = () => {
     const ids = [...configIds]
-    const policy = addPolicy({
+    const input = {
       name: name.trim(),
       description: description.trim() || undefined,
-      risk: 'medium',
       status: enabled,
       fileTypeIds: [...fileTypeSet],
       classificationIds: [...classSet],
       configurationId: ids[0],
       configurationIds: ids,
       scopeIds: [...scopeSet],
-    })
-    setSaved(policy)
+    }
+    if (editPolicy) {
+      updatePolicy(editPolicy.id, input)
+      onOpenChange(false)
+      return
+    }
+    const policy = addPolicy(input)
+    // Navigate straight to the new policy's details page — no separate
+    // "policy created" confirmation screen. The route change unmounts this
+    // drawer, so there's no need to also call onOpenChange here.
+    navigate(`/data-discovery/policies/${policy.id}`)
   }
 
   return (
     <Sheet open={open} onOpenChange={(next) => !next && requestClose()}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
         <SheetHeader className="border-b px-5 py-4 text-left">
-          <SheetTitle>{saved ? 'Policy created' : 'Create policy'}</SheetTitle>
+          <SheetTitle>{isEdit ? 'Edit policy' : 'Create policy'}</SheetTitle>
           <SheetDescription>
-            {saved
-              ? `“${saved.name}” is ${saved.status ? 'enabled' : 'saved as disabled'}.`
+            {isEdit
+              ? 'Update what this policy scans for and which sources it targets.'
               : 'Define what to scan for and which sources to target.'}
           </SheetDescription>
         </SheetHeader>
 
-        {saved ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-10 text-center">
-            <div className="flex size-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <CheckCircle2 className="size-7" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Targets {selectedConfigs.length}{' '}
-                {selectedConfigs.length === 1 ? 'source' : 'sources'} ·{' '}
-                {saved.scopeIds.length} {noun.toLowerCase()}.
-              </p>
-              <div className="mt-4">
-                <AuditStamp at={saved.createdAt} by={saved.createdBy} />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
+        <>
             <div className="border-b px-5 py-4">
               <Stepper steps={STEPS} current={step} onStepClick={setStep} scrollable />
             </div>
@@ -364,41 +369,110 @@ export function PolicyDrawer({
                             {configsForType.map((c) => {
                               const on = configIds.has(c.id)
                               const hasPublic = c.scopes.some((s) => s.publicAccess)
+                              const expanded = expandedSources.has(c.id)
+                              const selectedInSource = c.scopes.filter((s) =>
+                                scopeSet.has(s.id),
+                              ).length
                               return (
-                                <button
+                                <div
                                   key={c.id}
-                                  type="button"
-                                  aria-pressed={on}
-                                  onClick={() => toggleSource(c.id)}
                                   className={cn(
-                                    'flex items-center gap-3 rounded-xl border p-3 text-left transition-colors',
+                                    'overflow-hidden rounded-xl border transition-colors',
                                     on
                                       ? 'border-brand/50 bg-brand/5'
                                       : 'hover:border-border hover:bg-secondary/40',
                                   )}
                                 >
-                                  <ProviderIcon providerId={c.providerId} size="sm" />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-foreground">
-                                      {c.name}
-                                    </p>
-                                    <p className="truncate text-xs text-muted-foreground">
-                                      {c.scopes.length}{' '}
-                                      {provider?.scopeNounPlural.toLowerCase()}
-                                    </p>
-                                  </div>
-                                  {hasPublic && <ExposurePill public />}
-                                  <span
-                                    className={cn(
-                                      'flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors',
-                                      on
-                                        ? 'border-brand bg-brand text-white'
-                                        : 'border-input bg-card text-transparent',
-                                    )}
+                                  <button
+                                    type="button"
+                                    aria-pressed={on}
+                                    onClick={() => toggleSource(c.id)}
+                                    className="flex w-full items-center gap-3 p-3 text-left"
                                   >
-                                    <Check className="size-3" strokeWidth={3} />
-                                  </span>
-                                </button>
+                                    <ProviderIcon providerId={c.providerId} size="sm" />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-sm font-medium text-foreground">
+                                        {c.name}
+                                      </p>
+                                      <p className="truncate text-xs text-muted-foreground">
+                                        {on ? selectedInSource : c.scopes.length}{' '}
+                                        {provider?.scopeNounPlural.toLowerCase()}
+                                        {on && ' selected'}
+                                      </p>
+                                    </div>
+                                    {hasPublic && <ExposurePill public />}
+                                    <span
+                                      className={cn(
+                                        'flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors',
+                                        on
+                                          ? 'border-brand bg-brand text-white'
+                                          : 'border-input bg-card text-transparent',
+                                      )}
+                                    >
+                                      <Check className="size-3" strokeWidth={3} />
+                                    </span>
+                                  </button>
+
+                                  {on && (
+                                    <div className="border-t bg-card px-3 py-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleExpandedSource(c.id)}
+                                        className="flex w-full items-center justify-between py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                                      >
+                                        Configure this source’s experience
+                                        <ChevronDown
+                                          className={cn(
+                                            'size-3.5 transition-transform',
+                                            expanded && 'rotate-180',
+                                          )}
+                                        />
+                                      </button>
+                                      {expanded && (
+                                        <div className="mt-2 grid gap-1.5">
+                                          {c.scopes.map((s) => {
+                                            const checked = scopeSet.has(s.id)
+                                            return (
+                                              <button
+                                                key={s.id}
+                                                type="button"
+                                                aria-pressed={checked}
+                                                onClick={() => toggleScope(s.id)}
+                                                className={cn(
+                                                  'flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors',
+                                                  checked
+                                                    ? 'border-brand/40 bg-brand/5'
+                                                    : 'hover:border-border hover:bg-secondary/40',
+                                                )}
+                                              >
+                                                <span
+                                                  className={cn(
+                                                    'flex size-4 shrink-0 items-center justify-center rounded border transition-colors',
+                                                    checked
+                                                      ? 'border-brand bg-brand text-white'
+                                                      : 'border-input bg-card text-transparent',
+                                                  )}
+                                                >
+                                                  <Check className="size-2.5" strokeWidth={3} />
+                                                </span>
+                                                <div className="min-w-0 flex-1">
+                                                  <p className="truncate text-xs font-medium text-foreground">
+                                                    {s.name}
+                                                  </p>
+                                                  <p className="truncate text-[11px] text-muted-foreground">
+                                                    {s.objects} objects · {s.sensitive}{' '}
+                                                    sensitive · {formatBytes(s.sizeBytes)}
+                                                  </p>
+                                                </div>
+                                                {s.publicAccess && <ExposurePill public />}
+                                              </button>
+                                            )
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               )
                             })}
                           </div>
@@ -468,37 +542,13 @@ export function PolicyDrawer({
                 </div>
               )}
 
-              {/* Step 5 — scope across selected sources */}
-              {step === 4 && provider && (
+              {/* Step 5 — review */}
+              {step === 4 && (
                 <div className="space-y-3">
                   <StepHeading
-                    title={`${provider.scopeNounPlural} to scan`}
-                    subtitle={`Pick which ${provider.scopeNounPlural.toLowerCase()} across ${selectedConfigs.length} ${
-                      selectedConfigs.length === 1 ? 'source' : 'sources'
-                    } this policy covers.`}
+                    title="Review policy"
+                    subtitle={isEdit ? 'Confirm before saving.' : 'Confirm before creating.'}
                   />
-                  <SearchableSelect
-                    options={scopeOptions}
-                    selected={scopeSet}
-                    onToggle={toggleScope}
-                    onSelectAll={(c) =>
-                      setScopeSet(c ? new Set(scopeOptions.map((o) => o.id)) : new Set())
-                    }
-                    placeholder={`Search ${provider.scopeNounPlural.toLowerCase()}…`}
-                    renderMeta={(o) => {
-                      const sc = selectedConfigs
-                        .flatMap((c) => c.scopes)
-                        .find((s) => s.id === o.id)
-                      return sc?.publicAccess ? <ExposurePill public /> : null
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Step 6 — review */}
-              {step === 5 && (
-                <div className="space-y-3">
-                  <StepHeading title="Review policy" subtitle="Confirm before creating." />
                   <div className="overflow-hidden rounded-xl border">
                     <div className="flex items-center justify-between gap-3 border-b bg-secondary/30 px-4 py-3">
                       <div className="min-w-0">
@@ -553,48 +603,26 @@ export function PolicyDrawer({
                 </div>
               )}
             </div>
-          </>
-        )}
+        </>
 
         <SheetFooter className="flex-row items-center justify-between gap-2 border-t px-5 py-4">
-          {saved ? (
-            <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                View policies
-              </Button>
-              {saved.status && (
-                <Button
-                  onClick={() => {
-                    runScan(saved.id)
-                    navigate('/data-discovery/scans')
-                  }}
-                >
-                  <Play className="size-4" />
-                  Run scan now
-                </Button>
-              )}
-            </>
+          <Button
+            variant="ghost"
+            onClick={() => (step === 0 ? requestClose() : setStep((s) => s - 1))}
+          >
+            <ArrowLeft className="size-4" />
+            {step === 0 ? 'Cancel' : 'Back'}
+          </Button>
+          {step < STEPS.length - 1 ? (
+            <Button onClick={() => setStep((s) => s + 1)} disabled={!canNext}>
+              Next
+              <ArrowRight className="size-4" />
+            </Button>
           ) : (
-            <>
-              <Button
-                variant="ghost"
-                onClick={() => (step === 0 ? requestClose() : setStep((s) => s - 1))}
-              >
-                <ArrowLeft className="size-4" />
-                {step === 0 ? 'Cancel' : 'Back'}
-              </Button>
-              {step < STEPS.length - 1 ? (
-                <Button onClick={() => setStep((s) => s + 1)} disabled={!canNext}>
-                  Next
-                  <ArrowRight className="size-4" />
-                </Button>
-              ) : (
-                <Button onClick={handleCreate}>
-                  <ShieldCheck className="size-4" />
-                  Create policy
-                </Button>
-              )}
-            </>
+            <Button onClick={handleCreate}>
+              <ShieldCheck className="size-4" />
+              {isEdit ? 'Save changes' : 'Create policy'}
+            </Button>
           )}
         </SheetFooter>
       </SheetContent>

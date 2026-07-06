@@ -1,16 +1,9 @@
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Search, FileSearch, ShieldAlert, Globe, HardDrive, X } from 'lucide-react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, Search, FileSearch, X } from 'lucide-react'
 import { useDataDiscovery } from '@/store/DataDiscoveryContext'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Sheet,
   SheetContent,
@@ -19,16 +12,18 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import {
-  PageHeader,
-  SummaryCard,
-  EmptyState,
-  RiskBadge,
-} from '@/components/common'
+import { PageHeader, EmptyState } from '@/components/common'
 import { FindingsTable, ScopeTable } from '@/components/v2/tables'
-import { ListToggle, FindingCards, type ListView } from '@/components/v2/cards'
+import {
+  FindingFilterBar,
+  applyFilters,
+  activeChips,
+  initialFilterState,
+  FINDING_FILTERS,
+  type FilterState,
+} from '@/components/v2/findingFilters'
 import { ExposurePill } from '@/components/discovery/ScopeTable'
-import { classifications, classificationById, fileTypeById } from '@/data'
+import { classificationById, fileTypeById } from '@/data'
 import { formatBytes, formatDateTime } from '@/lib/format'
 import type { Finding, FindingStatus } from '@/types'
 
@@ -37,33 +32,50 @@ export function Results() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const scan = searchParams.get('scan')
+  const location = useLocation()
+  const navigate = useNavigate()
+  // Arriving from a "Run scan" flow carries where the user actually started —
+  // land them back there instead of defaulting to the dashboard.
+  const backTo = (location.state as { from?: string; fromLabel?: string } | null) ?? null
 
   const [tab, setTab] = useState('files')
   const [q, setQ] = useState('')
-  const [source, setSource] = useState(() => searchParams.get('source') ?? 'all')
-  const [cls, setCls] = useState('all')
-  const [risk, setRisk] = useState('all')
-  const [exposure, setExposure] = useState('all')
-  const [scope, setScope] = useState('all')
-  const [status, setStatus] = useState('all')
+  const [filters, setFilters] = useState<FilterState>(() =>
+    initialFilterState({ source: searchParams.get('source') ?? 'all' }),
+  )
   const [selected, setSelected] = useState<Finding | null>(null)
-  const [view, setView] = useState<ListView>('table')
 
-  const filtered = useMemo(() => {
-    return findings.filter((f) => {
-      if (scan && f.scanId !== scan) return false
-      if (source !== 'all' && f.configurationId !== source) return false
-      if (cls !== 'all' && !f.classificationIds.includes(cls)) return false
-      if (risk !== 'all' && f.risk !== risk) return false
-      if (exposure === 'public' && !f.publicAccess) return false
-      if (exposure === 'private' && f.publicAccess) return false
-      if (scope !== 'all' && f.scopeId !== scope) return false
-      if (status !== 'all' && (f.status ?? 'open') !== status) return false
-      if (q && !`${f.fileName} ${f.filePath}`.toLowerCase().includes(q.toLowerCase()))
-        return false
-      return true
+  // Changing a filter snaps its declared downstream keys back to "all", which is
+  // what keeps the data type → data source → scope cascade consistent.
+  const changeFilter = (key: string, value: string) => {
+    setFilters((prev) => {
+      const next = { ...prev, [key]: value }
+      FINDING_FILTERS.find((d) => d.key === key)?.resets?.forEach((k) => {
+        next[k] = 'all'
+      })
+      return next
     })
-  }, [findings, scan, source, cls, risk, exposure, scope, status, q])
+  }
+
+  // Search + scan narrow first; the cascade filters apply on top and their
+  // option lists are faceted against this base.
+  const base = useMemo(
+    () =>
+      findings.filter((f) => {
+        if (scan && f.scanId !== scan) return false
+        if (
+          q &&
+          !`${f.fileName} ${f.filePath}`.toLowerCase().includes(q.toLowerCase())
+        )
+          return false
+        return true
+      }),
+    [findings, scan, q],
+  )
+  const filtered = useMemo(
+    () => applyFilters(base, filters, configurations),
+    [base, filters, configurations],
+  )
 
   const clearScan = () => {
     setSearchParams((prev) => {
@@ -73,13 +85,20 @@ export function Results() {
     })
   }
 
-  const elevated = findings.filter(
-    (f) => f.risk === 'high' || f.risk === 'critical',
-  ).length
-  const exposed = findings.filter((f) => f.publicAccess).length
-  const dataScanned = configurations
-    .flatMap((c) => c.scopes)
-    .reduce((n, s) => n + s.sizeBytes, 0)
+  const chips = [
+    q && { key: 'q', label: `“${q}”`, clear: () => setQ('') },
+    scan && { key: 'scan', label: 'Latest scan', clear: clearScan },
+    ...activeChips(filters, configurations).map((c) => ({
+      ...c,
+      clear: () => changeFilter(c.key, 'all'),
+    })),
+  ].filter(Boolean) as { key: string; label: string; clear: () => void }[]
+
+  const clearAll = () => {
+    setQ('')
+    setFilters(initialFilterState())
+    if (scan) clearScan()
+  }
 
   const scopeRows = configurations.flatMap((c) =>
     c.scopes.map((scope) => ({ scope, configName: c.name })),
@@ -93,6 +112,16 @@ export function Results() {
 
   return (
     <div className="space-y-6">
+      {backTo?.from && (
+        <button
+          type="button"
+          onClick={() => navigate(backTo.from!)}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          Back to {backTo.fromLabel ?? 'where you started'}
+        </button>
+      )}
       <PageHeader
         breadcrumb={[
           { label: 'Data Discovery', to: '/data-discovery' },
@@ -102,33 +131,6 @@ export function Results() {
         description="Sensitive data discovered across your connected sources. Filter, drill down, and review evidence."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard
-          label="Sensitive files"
-          value={findings.length}
-          icon={FileSearch}
-          iconClass="bg-brand/10 text-brand"
-        />
-        <SummaryCard
-          label="High & critical"
-          value={elevated}
-          icon={ShieldAlert}
-          iconClass="bg-brand/10 text-brand"
-        />
-        <SummaryCard
-          label="Publicly exposed"
-          value={exposed}
-          icon={Globe}
-          iconClass="bg-brand/10 text-brand"
-        />
-        <SummaryCard
-          label="Data scanned"
-          value={formatBytes(dataScanned)}
-          icon={HardDrive}
-          iconClass="bg-brand/10 text-brand"
-        />
-      </div>
-
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="files">Files</TabsTrigger>
@@ -136,105 +138,53 @@ export function Results() {
         </TabsList>
 
         <TabsContent value="files" className="space-y-4">
-          {scan && (
-            <div className="flex items-center justify-between gap-3 rounded-lg border bg-secondary px-3 py-2 text-sm">
-              <span className="text-muted-foreground">
-                Showing findings from the latest scan
-              </span>
-              <button
-                type="button"
-                onClick={clearScan}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/30"
-              >
-                <X className="size-3.5" />
-                Clear
-              </button>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[220px] flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search files…"
-                className="h-9 w-full rounded-lg border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+          <div className="space-y-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+              <div className="relative min-w-[220px] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search files…"
+                  className="h-9 w-full rounded-lg border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                />
+              </div>
+              <FindingFilterBar
+                base={base}
+                state={filters}
+                onChange={changeFilter}
+                configurations={configurations}
               />
             </div>
-            <FilterSelect
-              value={source}
-              onChange={setSource}
-              placeholder="Source"
-              options={[
-                { value: 'all', label: 'All sources' },
-                ...configurations.map((c) => ({ value: c.id, label: c.name })),
-              ]}
-            />
-            <FilterSelect
-              value={scope}
-              onChange={setScope}
-              placeholder="Scope"
-              options={[
-                { value: 'all', label: 'All scopes' },
-                ...configurations
-                  .flatMap((c) => c.scopes)
-                  .map((s) => ({ value: s.id, label: s.name })),
-              ]}
-            />
-            <FilterSelect
-              value={cls}
-              onChange={setCls}
-              placeholder="Classification"
-              options={[
-                { value: 'all', label: 'All classifications' },
-                ...classifications.map((c) => ({ value: c.id, label: c.abbr })),
-              ]}
-            />
-            <FilterSelect
-              value={risk}
-              onChange={setRisk}
-              placeholder="Risk"
-              options={[
-                { value: 'all', label: 'All risk' },
-                { value: 'low', label: 'Low' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'high', label: 'High' },
-                { value: 'critical', label: 'Critical' },
-              ]}
-            />
-            <FilterSelect
-              value={exposure}
-              onChange={setExposure}
-              placeholder="Exposure"
-              options={[
-                { value: 'all', label: 'All exposure' },
-                { value: 'public', label: 'Public' },
-                { value: 'private', label: 'Private' },
-              ]}
-            />
-            <FilterSelect
-              value={status}
-              onChange={setStatus}
-              placeholder="Status"
-              options={[
-                { value: 'all', label: 'All statuses' },
-                { value: 'open', label: 'Open' },
-                { value: 'acknowledged', label: 'Acknowledged' },
-                { value: 'dismissed', label: 'Dismissed' },
-              ]}
-            />
-            <ListToggle value={view} onChange={setView} />
+
+            {chips.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {chips.map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={f.clear}
+                    className="inline-flex items-center gap-1 rounded-full border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/30"
+                  >
+                    {f.label}
+                    <X className="size-3" />
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
           </div>
 
           {filtered.length ? (
-            view === 'cards' ? (
-              <FindingCards findings={filtered} onSelect={setSelected} />
-            ) : (
-              <Card className="p-0">
-                <FindingsTable findings={filtered} onSelect={setSelected} />
-              </Card>
-            )
+            <Card className="p-0">
+              <FindingsTable findings={filtered} onSelect={setSelected} />
+            </Card>
           ) : (
             <EmptyState
               icon={FileSearch}
@@ -254,7 +204,7 @@ export function Results() {
               noun="Container / Bucket"
               findingCount={findingCount}
               onOpenScope={(scopeId) => {
-                setScope(scopeId)
+                changeFilter('scope', scopeId)
                 setTab('files')
               }}
             />
@@ -268,33 +218,6 @@ export function Results() {
         updateFindingStatus={updateFindingStatus}
       />
     </div>
-  )
-}
-
-function FilterSelect({
-  value,
-  onChange,
-  placeholder,
-  options,
-}: {
-  value: string
-  onChange: (v: string) => void
-  placeholder: string
-  options: { value: string; label: string }[]
-}) {
-  return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-9 w-[150px] bg-card">
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   )
 }
 
@@ -340,7 +263,6 @@ function EvidenceDrawer({
             </SheetHeader>
             <div className="space-y-5 px-4 pb-6">
               <div className="flex flex-wrap items-center gap-2">
-                <RiskBadge risk={finding.risk} />
                 <ExposurePill public={finding.publicAccess} />
                 <span className="rounded-full border bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
                   {fileTypeById(finding.fileTypeId)?.label}

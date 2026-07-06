@@ -1,4 +1,4 @@
-import type { ConnectionStatus, Risk, ScanStatus } from '@/types'
+import type { ConnectionStatus, ScanStatus } from '@/types'
 
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -41,29 +41,6 @@ export function formatDuration(sec?: number): string {
 }
 
 type Meta = { label: string; dot: string; badge: string }
-
-export const RISK_META: Record<Risk, Meta> = {
-  low: {
-    label: 'Low',
-    dot: 'bg-slate-400',
-    badge: 'bg-slate-100 text-slate-700 border-slate-200',
-  },
-  medium: {
-    label: 'Medium',
-    dot: 'bg-amber-500',
-    badge: 'bg-amber-50 text-amber-700 border-amber-200',
-  },
-  high: {
-    label: 'High',
-    dot: 'bg-orange-500',
-    badge: 'bg-orange-50 text-orange-700 border-orange-200',
-  },
-  critical: {
-    label: 'Critical',
-    dot: 'bg-red-500',
-    badge: 'bg-red-50 text-red-700 border-red-200',
-  },
-}
 
 export const STATUS_META: Record<ConnectionStatus, Meta> = {
   connected: {

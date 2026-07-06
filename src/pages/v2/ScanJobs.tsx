@@ -138,11 +138,11 @@ export function ScanJobs() {
                 <TableRow className="bg-secondary/40 hover:bg-secondary/40">
                   <TableHead>Policy</TableHead>
                   <TableHead>Source</TableHead>
-                  <TableHead className="text-right">Scope</TableHead>
+                  <TableHead>Scope</TableHead>
                   <TableHead>Started</TableHead>
                   <TableHead>Duration</TableHead>
-                  <TableHead className="text-right">Objects</TableHead>
-                  <TableHead className="text-right">Sensitive</TableHead>
+                  <TableHead>Objects</TableHead>
+                  <TableHead>Sensitive</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -159,6 +159,12 @@ export function ScanJobs() {
                       onClick={() =>
                         navigate(
                           `/data-discovery/results?source=${s.configurationId}&scan=${s.id}`,
+                          {
+                            state: {
+                              from: '/data-discovery/scans',
+                              fromLabel: 'Scan Jobs',
+                            },
+                          },
                         )
                       }
                       className={
@@ -180,7 +186,7 @@ export function ScanJobs() {
                           '—'
                         )}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="tabular-nums text-muted-foreground">
                         {s.scopeIds.length}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
@@ -189,10 +195,10 @@ export function ScanJobs() {
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDuration(s.durationSec)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="tabular-nums">
                         {s.objectsScanned.toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-right font-medium tabular-nums text-foreground">
+                      <TableCell className="font-medium tabular-nums text-foreground">
                         {s.sensitiveFound.toLocaleString()}
                       </TableCell>
                       <TableCell>

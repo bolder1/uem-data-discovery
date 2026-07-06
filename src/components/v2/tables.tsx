@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ChevronRight,
   MoreVertical,
@@ -40,7 +40,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { RiskBadge, ProviderIcon } from '@/components/common'
+import { ProviderIcon } from '@/components/common'
 import { ExposurePill } from '@/components/discovery/ScopeTable'
 import { useDataDiscovery } from '@/store/DataDiscoveryContext'
 import { classificationById, fileTypeById, providerById } from '@/data'
@@ -70,6 +70,73 @@ function IconChip({ id, kind }: { id: string; kind: 'file' | 'class' }) {
     >
       <Icon className="size-3.5" />
     </span>
+  )
+}
+
+// Classifications have no per-item icon, so they read as named pills instead
+// — capped at two so the row stays scannable, with the rest revealed on
+// hover over the "+N" pill.
+function ClassificationPills({ ids, max = 2 }: { ids: string[]; max?: number }) {
+  if (ids.length === 0) return <span className="text-sm text-muted-foreground">—</span>
+  const shown = ids.slice(0, max)
+  const rest = ids.length - shown.length
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {shown.map((id) => (
+        <span
+          key={id}
+          className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-foreground"
+        >
+          {classificationById(id)?.label ?? id}
+        </span>
+      ))}
+      {rest > 0 && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex cursor-default items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              +{rest}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {ids.map((id) => classificationById(id)?.label ?? id).join(', ')}
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  )
+}
+
+// File types do have icons — show a few chips (each individually
+// identifiable on hover) plus an overflow count with the full list on hover.
+function FileTypeIcons({ ids, max = 3 }: { ids: string[]; max?: number }) {
+  if (ids.length === 0) return <span className="text-sm text-muted-foreground">—</span>
+  const shown = ids.slice(0, max)
+  const rest = ids.length - shown.length
+  return (
+    <div className="flex items-center gap-1">
+      {shown.map((id) => (
+        <Tooltip key={id}>
+          <TooltipTrigger asChild>
+            <span>
+              <IconChip id={id} kind="file" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{fileTypeById(id)?.label}</TooltipContent>
+        </Tooltip>
+      ))}
+      {rest > 0 && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="cursor-default text-xs font-medium text-muted-foreground">
+              +{rest}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {ids.map((id) => fileTypeById(id)?.label ?? id).join(', ')}
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
   )
 }
 
@@ -110,8 +177,12 @@ function PolicyRow({
   deletePolicy: (id: string) => void
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const navigate = useNavigate()
   return (
-    <TableRow className="hover:bg-accent/40">
+    <TableRow
+      className="cursor-pointer hover:bg-accent/40"
+      onClick={() => navigate(`/data-discovery/policies/${p.id}`)}
+    >
       <TableCell>
         <p className="font-medium text-foreground">{p.name}</p>
         {p.description && (
@@ -139,56 +210,19 @@ function PolicyRow({
         </TableCell>
       )}
       <TableCell>
-        <div className="flex items-center gap-1">
-          {p.classificationIds.slice(0, 4).map((id) => (
-            <Tooltip key={id}>
-              <TooltipTrigger asChild>
-                <span>
-                  <IconChip id={id} kind="class" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {classificationById(id)?.label}
-              </TooltipContent>
-            </Tooltip>
-          ))}
-          {p.classificationIds.length > 4 && (
-            <span className="text-xs text-muted-foreground">
-              +{p.classificationIds.length - 4}
-            </span>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="text-center">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="cursor-default text-sm tabular-nums text-foreground">
-              {p.fileTypeIds.length}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            {p.fileTypeIds
-              .map((id) => fileTypeById(id)?.label)
-              .filter(Boolean)
-              .join(', ')}
-          </TooltipContent>
-        </Tooltip>
+        <ClassificationPills ids={p.classificationIds} />
       </TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={p.status}
-            onCheckedChange={() => togglePolicy(p.id)}
-          />
-          <span className="text-xs text-muted-foreground">
-            {p.status ? 'Enabled' : 'Disabled'}
-          </span>
-        </div>
+        <FileTypeIcons ids={p.fileTypeIds} />
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
-        {formatDateTime(p.lastRun)}
+      <TableCell onClick={(e) => e.stopPropagation()}>
+        <Switch
+          checked={p.status}
+          onCheckedChange={() => togglePolicy(p.id)}
+          aria-label={p.status ? 'Enabled' : 'Disabled'}
+        />
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -200,6 +234,12 @@ function PolicyRow({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link to={`/data-discovery/policies/${p.id}`}>
+                <ChevronRight className="size-4" />
+                View details
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!p.status}
               onClick={() => onRun?.(p)}
@@ -264,10 +304,9 @@ export function PolicyTable({
           <TableHead>Policy</TableHead>
           {showSource && <TableHead>Data Source</TableHead>}
           <TableHead>Classifications</TableHead>
-          <TableHead className="text-center">File Types</TableHead>
+          <TableHead>File Types</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Last Run</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+          <TableHead className="text-center">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -329,8 +368,8 @@ export function ScopeTable({
       <TableHeader>
         <TableRow className="bg-secondary/40 hover:bg-secondary/40">
           <TableHead>{noun}</TableHead>
-          <TableHead className="text-right">Objects</TableHead>
-          <TableHead className="text-right">Sensitive</TableHead>
+          <TableHead>Objects</TableHead>
+          <TableHead>Sensitive</TableHead>
           <TableHead>Exposure</TableHead>
           <TableHead>Last Scan</TableHead>
           <TableHead className="w-10" />
@@ -366,10 +405,10 @@ export function ScopeTable({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="tabular-nums">
                   {scope.objects}
                 </TableCell>
-                <TableCell className="text-right font-medium tabular-nums text-foreground">
+                <TableCell className="font-medium tabular-nums text-foreground">
                   {scope.sensitive}
                 </TableCell>
                 <TableCell>
@@ -444,10 +483,9 @@ export function FindingsTable({
           <TableHead>File</TableHead>
           <TableHead>Type</TableHead>
           <TableHead>Classifications</TableHead>
-          <TableHead>Risk</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Exposure</TableHead>
-          <TableHead className="text-right">Size</TableHead>
+          <TableHead>Size</TableHead>
           <TableHead>Last Modified</TableHead>
         </TableRow>
       </TableHeader>
@@ -480,21 +518,7 @@ export function FindingsTable({
               {fileTypeById(f.fileTypeId)?.label ?? f.fileTypeId}
             </TableCell>
             <TableCell>
-              <div className="flex flex-wrap gap-1">
-                {f.classificationIds.map((id) => (
-                  <Tooltip key={id}>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <IconChip id={id} kind="class" />
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>{classificationById(id)?.label}</TooltipContent>
-                  </Tooltip>
-                ))}
-              </div>
-            </TableCell>
-            <TableCell>
-              <RiskBadge risk={f.risk} />
+              <ClassificationPills ids={f.classificationIds} />
             </TableCell>
             <TableCell>
               <StatusPill status={status} />
@@ -502,7 +526,7 @@ export function FindingsTable({
             <TableCell>
               <ExposurePill public={f.publicAccess} />
             </TableCell>
-            <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+            <TableCell className="text-sm tabular-nums text-muted-foreground">
               {formatBytes(f.sizeBytes)}
             </TableCell>
             <TableCell className="text-sm text-muted-foreground">

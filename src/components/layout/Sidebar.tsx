@@ -16,7 +16,6 @@ import {
   Package,
   Database,
   ShieldCheck,
-  Radar,
   FileSearch,
   ChevronDown,
   ShieldHalf,
@@ -34,11 +33,12 @@ interface NavLeaf {
 
 const DD_BASE = '/data-discovery'
 
+// Scan Jobs is intentionally not a primary nav item — recent scans live on the
+// Dashboard with a "View all" link into the (still-routed) scans page.
 const dataDiscoveryChildren: NavLeaf[] = [
   { label: 'Dashboard', icon: LayoutDashboard, to: DD_BASE },
   { label: 'Data Sources', icon: Database, to: `${DD_BASE}/sources` },
   { label: 'Policies', icon: ShieldCheck, to: `${DD_BASE}/policies` },
-  { label: 'Scan Jobs', icon: Radar, to: `${DD_BASE}/scans` },
   { label: 'Results', icon: FileSearch, to: `${DD_BASE}/results` },
 ]
 

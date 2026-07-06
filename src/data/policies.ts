@@ -6,7 +6,6 @@ export const seedPolicies: Policy[] = [
     name: 'Azure Sensitive Data Sweep',
     description:
       'Flag PII and financial records across Azure blob containers.',
-    risk: 'high',
     status: true,
     fileTypeIds: ['word', 'excel', 'pdf', 'csv'],
     classificationIds: ['pii', 'financial', 'credentials'],
@@ -21,7 +20,6 @@ export const seedPolicies: Policy[] = [
     name: 'S3 Public Exposure Check',
     description:
       'Detect cardholder and credential data in S3, prioritising public buckets.',
-    risk: 'critical',
     status: true,
     fileTypeIds: ['pdf', 'csv', 'text', 'zip'],
     classificationIds: ['pci', 'credentials', 'pii'],
@@ -35,7 +33,6 @@ export const seedPolicies: Policy[] = [
     id: 'pol-3',
     name: 'Source Code Leak Monitor',
     description: 'Watch for proprietary source code committed to storage.',
-    risk: 'medium',
     status: false,
     fileTypeIds: ['zip', 'jar', 'text'],
     classificationIds: ['source-code', 'ip'],

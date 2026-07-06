@@ -4,7 +4,6 @@ import {
   Plus,
   DatabaseZap,
   ShieldCheck,
-  ShieldAlert,
   FileSearch,
   MoreHorizontal,
   Trash2,
@@ -15,8 +14,6 @@ import {
   ChevronDown,
   Check,
   Database,
-  HardDrive,
-  Boxes,
   ScanSearch,
   Pencil,
 } from 'lucide-react'
@@ -43,7 +40,6 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
 import {
-  SummaryCard,
   ProviderIcon,
   ConnectionStatusBadge,
   MaskedSecret,
@@ -52,7 +48,7 @@ import {
 } from '@/components/common'
 import { PolicyTable, ScopeTable, FindingsTable } from '@/components/v2/tables'
 import { ConfigureDrawer } from '@/components/v2/ConfigureDrawer'
-import { formatBytes } from '@/lib/format'
+import { useRunScanDialog } from '@/components/v2/RunScanDialog'
 import type { Configuration, Policy } from '@/types'
 
 export function ProviderDetail({
@@ -65,8 +61,9 @@ export function ProviderDetail({
   const providerId = propProviderId ?? params.provider
   const navigate = useNavigate()
   const provider = providerId ? providerById(providerId) : undefined
-  const { configurations, policies, findings, deleteConfiguration, runScan } =
+  const { configurations, policies, findings, deleteConfiguration } =
     useDataDiscovery()
+  const { start: startScan, dialog: runScanDialog } = useRunScanDialog()
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = searchParams.get('tab') ?? 'configurations'
   const setTab = (v: string) =>
@@ -174,43 +171,6 @@ export function ProviderDetail({
     </div>
   )
 
-  const totalScopes = configs.reduce((n, c) => n + c.scopes.length, 0)
-  const totalSensitive = configs
-    .flatMap((c) => c.scopes)
-    .reduce((n, s) => n + s.sensitive, 0)
-  const dataScanned = configs
-    .flatMap((c) => c.scopes)
-    .reduce((n, s) => n + s.sizeBytes, 0)
-
-  const summary = (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <SummaryCard
-        label="Configurations"
-        value={configs.length}
-        icon={Database}
-        iconClass="bg-brand/10 text-brand"
-      />
-      <SummaryCard
-        label={provider.scopeNounPlural}
-        value={totalScopes}
-        icon={Boxes}
-        iconClass="bg-brand/10 text-brand"
-      />
-      <SummaryCard
-        label="Sensitive findings"
-        value={totalSensitive}
-        icon={ShieldAlert}
-        iconClass="bg-brand/10 text-brand"
-      />
-      <SummaryCard
-        label="Data scanned"
-        value={formatBytes(dataScanned)}
-        icon={HardDrive}
-        iconClass="bg-brand/10 text-brand"
-      />
-    </div>
-  )
-
   if (configs.length === 0) {
     return (
       <div className="space-y-6">
@@ -236,14 +196,12 @@ export function ProviderDetail({
   }
 
   const onRun = (policy: Policy) => {
-    runScan(policy.id)
-    navigate('/data-discovery/scans')
+    startScan(policy.id, policy.name)
   }
 
   return (
     <div className="space-y-6">
       {header}
-      {summary}
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList>
@@ -303,7 +261,15 @@ export function ProviderDetail({
                   {providerFindings.length} sensitive files discovered
                 </p>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/data-discovery/results">Open in Results</Link>
+                  <Link
+                    to="/data-discovery/results"
+                    state={{
+                      from: `/data-discovery/sources/${provider.id}`,
+                      fromLabel: provider.name,
+                    }}
+                  >
+                    Open in Results
+                  </Link>
                 </Button>
               </div>
               <FindingsTable findings={providerFindings} />
@@ -343,6 +309,8 @@ export function ProviderDetail({
           }}
         />
       )}
+
+      {runScanDialog}
     </div>
   )
 }

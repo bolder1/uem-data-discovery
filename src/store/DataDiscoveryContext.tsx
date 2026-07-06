@@ -46,6 +46,7 @@ interface ContextValue {
   updateConfiguration: (id: string, patch: Partial<Configuration>) => void
   deleteConfiguration: (id: string) => void
   addPolicy: (input: NewPolicy) => Policy
+  updatePolicy: (id: string, patch: Partial<NewPolicy>) => void
   togglePolicy: (id: string) => void
   deletePolicy: (id: string) => void
   runScan: (policyId: string) => ScanJob | undefined
@@ -96,6 +97,12 @@ export function DataDiscoveryProvider({ children }: { children: ReactNode }) {
     }
     setPolicies((prev) => [policy, ...prev])
     return policy
+  }, [])
+
+  const updatePolicy = useCallback((id: string, patch: Partial<NewPolicy>) => {
+    setPolicies((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+    )
   }, [])
 
   const togglePolicy = useCallback((id: string) => {
@@ -176,6 +183,7 @@ export function DataDiscoveryProvider({ children }: { children: ReactNode }) {
       updateConfiguration,
       deleteConfiguration,
       addPolicy,
+      updatePolicy,
       togglePolicy,
       deletePolicy,
       runScan,
@@ -190,6 +198,7 @@ export function DataDiscoveryProvider({ children }: { children: ReactNode }) {
       updateConfiguration,
       deleteConfiguration,
       addPolicy,
+      updatePolicy,
       togglePolicy,
       deletePolicy,
       runScan,
