@@ -5,3 +5,11 @@ export { seedConfigurations } from './configurations'
 export { seedPolicies } from './policies'
 export { seedScans } from './scans'
 export { seedFindings } from './findings'
+export {
+  seedLabels,
+  labelById,
+  seedRuleDictionary,
+  ruleById,
+  seedDefaultClassifications,
+  seedCustomClassifications,
+} from './contentFiltering'

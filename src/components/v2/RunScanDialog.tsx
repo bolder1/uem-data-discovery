@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
+  ArrowRight,
   Check,
   Loader2,
   CheckCircle2,
-  LayoutGrid,
-  FileSearch,
   X,
 } from 'lucide-react'
 import { useDataDiscovery } from '@/store/DataDiscoveryContext'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -30,13 +30,14 @@ const STEP_INTERVAL_MS = 650
 /**
  * Runs entirely in place — clicking "Run scan now" no longer yanks the user
  * to a different page. This dialog opens over the current screen, narrates
- * progress while the scan runs, then on completion offers a "VODTS" tab
- * that's the only thing that navigates (to Results). It remembers exactly
- * where the user started (the page `start` was called from) and carries
- * that along as router state, so Results can offer a way back to that
- * exact page instead of defaulting to the dashboard. If the user closes
- * the dialog before the scan finishes, a small toast notifies them the
- * moment it completes instead of silently finishing in the background.
+ * progress while the scan runs, then on completion offers a single clear
+ * "View results" button — navigating away is always an explicit choice, not
+ * folded into what looks like a passive tab. It remembers exactly where the
+ * user started (the page `start` was called from) and carries that along as
+ * router state, so Results can offer a way back to that exact page instead
+ * of defaulting to the dashboard. If the user closes the dialog before the
+ * scan finishes, a small toast notifies them the moment it completes
+ * instead of silently finishing in the background.
  */
 export function useRunScanDialog() {
   const { runScan, scans } = useDataDiscovery()
@@ -202,8 +203,6 @@ function CompletedView({
   onViewResults: () => void
   onClose: () => void
 }) {
-  const [tab, setTab] = useState<'summary' | 'vodts'>('summary')
-
   return (
     <>
       <DialogHeader>
@@ -219,60 +218,29 @@ function CompletedView({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="inline-flex items-center rounded-lg border bg-card p-0.5">
-        <button
-          type="button"
-          onClick={() => setTab('summary')}
-          className={cn(
-            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-            tab === 'summary'
-              ? 'bg-secondary text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          <LayoutGrid className="size-4" />
-          Summary
-        </button>
-        <button
-          type="button"
-          onClick={onViewResults}
-          className={cn(
-            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-            tab === 'vodts'
-              ? 'bg-secondary text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          <FileSearch className="size-4" />
-          VODTS
-        </button>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border p-3">
+          <p className="text-xs text-muted-foreground">Objects scanned</p>
+          <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
+            {scan.objectsScanned.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg border p-3">
+          <p className="text-xs text-muted-foreground">Sensitive found</p>
+          <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
+            {scan.sensitiveFound.toLocaleString()}
+          </p>
+        </div>
       </div>
 
-      {tab === 'summary' && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">Objects scanned</p>
-            <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
-              {scan.objectsScanned.toLocaleString()}
-            </p>
-          </div>
-          <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">Sensitive found</p>
-            <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
-              {scan.sensitiveFound.toLocaleString()}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          Stay on this page
-        </button>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onClose}>
+          Stay here
+        </Button>
+        <Button onClick={onViewResults}>
+          View results
+          <ArrowRight className="size-4" />
+        </Button>
       </div>
     </>
   )

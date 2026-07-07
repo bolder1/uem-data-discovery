@@ -132,3 +132,55 @@ export interface Finding {
   lastModified: string
   evidence: FindingEvidence[]
 }
+
+// ---------------------------------------------------------------------------
+// Content Filtering module — Classification, Labels, and the Rule Dictionary.
+// A distinct domain from Data Discovery's simple `Classification` (PII/PCI/…
+// abbreviations used when building a policy), so these types are named
+// differently to avoid confusion between the two modules.
+
+/** A sensitivity tag attached to a classification (e.g. Confidential). */
+export interface Label {
+  id: string
+  name: string
+  /** Seeded, built-in labels vs ones a user typed and created inline. */
+  isDefault: boolean
+}
+
+export type RuleCriteriaType = 'Keyword' | 'Regex' | 'Dictionary' | 'File Extension'
+
+export interface RuleCriterion {
+  type: RuleCriteriaType
+  /** Minimum number of matches for the rule to fire. */
+  occurrences: number
+  value: string
+}
+
+/** A detectable pattern — either a shared dictionary entry or a one-off rule
+ * scoped to a single classification (created via "Add Custom Rule"). */
+export interface Rule {
+  id: string
+  name: string
+  /** Grouping shown in the dictionary, e.g. "Driver's license number". */
+  category?: string
+  /** Seeded dictionary rules vs a classification's own inline custom rule. */
+  isDefault: boolean
+  criteria: RuleCriterion[]
+  tags?: string[]
+}
+
+export interface DlpClassification {
+  id: string
+  name: string
+  description: string
+  labelIds: string[]
+  /** Rules picked from the shared Rule Dictionary. */
+  ruleIds: string[]
+  /** Rules defined inline for this classification only — never added to
+   * the shared dictionary. */
+  customRules: Rule[]
+  /** Seeded (HIPAA/PII/…) vs user-created — defaults are read-only. */
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+}

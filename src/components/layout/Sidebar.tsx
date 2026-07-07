@@ -19,6 +19,11 @@ import {
   FileSearch,
   ChevronDown,
   ShieldHalf,
+  Tags,
+  BookMarked,
+  Fingerprint,
+  FileDigit,
+  Tag,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -32,6 +37,7 @@ interface NavLeaf {
 }
 
 const DD_BASE = '/data-discovery'
+const CF_BASE = '/content-filtering'
 
 // Scan Jobs is intentionally not a primary nav item — recent scans live on the
 // Dashboard with a "View all" link into the (still-routed) scans page.
@@ -40,6 +46,16 @@ const dataDiscoveryChildren: NavLeaf[] = [
   { label: 'Data Sources', icon: Database, to: `${DD_BASE}/sources` },
   { label: 'Policies', icon: ShieldCheck, to: `${DD_BASE}/policies` },
   { label: 'Results', icon: FileSearch, to: `${DD_BASE}/results` },
+]
+
+// Classification is the first live piece of Content Filtering; the rest of
+// its sub-pages land the same way Data Discovery's did — one at a time.
+const contentFilteringChildren: NavLeaf[] = [
+  { label: 'Classification', icon: Tags, to: `${CF_BASE}/classification` },
+  { label: 'Rule Dictionary', icon: BookMarked, inert: true },
+  { label: 'File Fingerprints', icon: Fingerprint, inert: true },
+  { label: 'Exact Data Matching', icon: FileDigit, inert: true },
+  { label: 'Labels', icon: Tag, inert: true },
 ]
 
 interface Section {
@@ -74,7 +90,6 @@ const sections: Section[] = [
 ]
 
 const trailing: NavLeaf[] = [
-  { label: 'Content Filtering', icon: Filter, inert: true },
   { label: 'Secure Web Gateway', icon: Globe, inert: true },
   { label: 'Mobile Device Management', icon: Smartphone, inert: true },
   { label: 'Patch Management', icon: Package, inert: true },
@@ -133,7 +148,9 @@ function NavRow({
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const { pathname } = useLocation()
   const onDataDiscovery = pathname.startsWith(DD_BASE)
+  const onContentFiltering = pathname.startsWith(CF_BASE)
   const [ddOpen, setDdOpen] = useState(true)
+  const [cfOpen, setCfOpen] = useState(true)
 
   const isActive = (to: string) =>
     to === DD_BASE ? pathname === DD_BASE : pathname.startsWith(to)
@@ -195,6 +212,47 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   key={item.label}
                   item={item}
                   active={isActive(item.to!)}
+                  indent
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Content Filtering — Classification live, rest arriving next */}
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => setCfOpen((v) => !v)}
+            className={cn(
+              'flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors',
+              onContentFiltering
+                ? 'text-foreground'
+                : 'text-sidebar-foreground hover:bg-secondary',
+            )}
+          >
+            <Filter
+              className={cn(
+                'size-4 shrink-0',
+                onContentFiltering ? 'text-primary' : 'text-sidebar-muted',
+              )}
+            />
+            <span className="flex-1 text-left font-medium">Content Filtering</span>
+            <ChevronDown
+              className={cn(
+                'size-4 text-sidebar-muted transition-transform',
+                cfOpen && 'rotate-180',
+              )}
+            />
+          </button>
+          {cfOpen && (
+            <div className="space-y-1">
+              {contentFilteringChildren.map((item) => (
+                <NavRow
+                  key={item.label}
+                  item={item}
+                  active={!!item.to && isActive(item.to)}
                   indent
                   onNavigate={onNavigate}
                 />

@@ -26,10 +26,9 @@ import {
 import { PageHeader, AuditStamp, EmptyState, ProviderIcon } from '@/components/common'
 import { FindingsTable } from '@/components/v2/tables'
 import { PolicyDrawer } from '@/components/v2/PolicyDrawer'
-import { ScanHistoryTimeline } from '@/components/v2/ScanHistoryTimeline'
+import { ScanHistorySection } from '@/components/v2/ScanHistorySection'
 import { useRunScanDialog } from '@/components/v2/RunScanDialog'
 import { fileTypeIcon, classificationIcon } from '@/lib/icons'
-import { formatDateTime } from '@/lib/format'
 import type { ScanJob } from '@/types'
 
 function Chip({ children }: { children: ReactNode }) {
@@ -127,7 +126,6 @@ export function PolicyDetail() {
               <Play className="size-4" />
               Run scan now
             </Button>
-            <ScanHistoryTimeline scans={policyScans} onOpenScan={onOpenScan} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -222,27 +220,28 @@ export function PolicyDetail() {
         </SectionCard>
       </div>
 
-      <Card className="gap-0 p-0">
-        <div className="flex items-center justify-between border-b px-5 py-3">
-          <p className="text-sm font-medium">
-            {policyFindings.length} sensitive files discovered
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Last run: {formatDateTime(policy.lastRun)}
-          </p>
-        </div>
-        {policyFindings.length ? (
-          <FindingsTable findings={policyFindings} />
-        ) : (
-          <div className="p-6">
-            <EmptyState
-              icon={FileSearch}
-              title="No findings yet"
-              description="Run a scan to surface sensitive data for this policy."
-            />
+      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+        <Card className="gap-0 p-0">
+          <div className="flex items-center justify-between border-b px-5 py-3">
+            <p className="text-sm font-medium">
+              {policyFindings.length} sensitive files discovered
+            </p>
           </div>
-        )}
-      </Card>
+          {policyFindings.length ? (
+            <FindingsTable findings={policyFindings} />
+          ) : (
+            <div className="p-6">
+              <EmptyState
+                icon={FileSearch}
+                title="No findings yet"
+                description="Run a scan to surface sensitive data for this policy."
+              />
+            </div>
+          )}
+        </Card>
+
+        <ScanHistorySection scans={policyScans} onOpenScan={onOpenScan} />
+      </div>
 
       <AuditStamp at={policy.createdAt} by={policy.createdBy} />
 
