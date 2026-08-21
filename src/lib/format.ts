@@ -1,4 +1,4 @@
-import type { ConnectionStatus, ScanStatus } from '@/types'
+import type { AppStatus, ConnectionStatus, ScanStatus } from '@/types'
 
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -85,5 +85,23 @@ export const SCAN_STATUS_META: Record<ScanStatus, Meta> = {
     label: 'Queued',
     dot: 'bg-slate-300',
     badge: 'bg-slate-100 text-slate-600 border-slate-200',
+  },
+}
+
+export const APP_STATUS_META: Record<AppStatus, Meta> = {
+  published: {
+    label: 'Published',
+    dot: 'bg-emerald-500',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  },
+  draft: {
+    label: 'Draft',
+    dot: 'bg-slate-300',
+    badge: 'bg-slate-100 text-slate-600 border-slate-200',
+  },
+  publishing: {
+    label: 'Publishing',
+    dot: 'bg-amber-500 animate-pulse',
+    badge: 'bg-amber-50 text-amber-700 border-amber-200',
   },
 }

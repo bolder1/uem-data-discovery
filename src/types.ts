@@ -184,3 +184,68 @@ export interface DlpClassification {
   createdAt: string
   updatedAt: string
 }
+
+// ---------------------------------------------------------------------------
+// Application Management module — Windows (MSI) and macOS (PKG/DMG) applications
+// uploaded once and deployed across enrolled devices. Lives under Mobile Device
+// Management → Unified Controls. The list is split by platform; each app keeps
+// a version history, and the newest version drives the row.
+
+export type AppPlatform = 'windows' | 'macos'
+
+/** Deployment state of an application. Published = live on assigned groups. */
+export type AppStatus = 'published' | 'draft' | 'publishing'
+
+export type AppInstallTarget = 'Device Level' | 'User Level'
+
+export type AppPublishAction =
+  | 'Install Immediately'
+  | 'Available for Self-Service'
+
+/** A device policy that can be assigned to an application (the "profile"). */
+export interface AppPolicy {
+  id: string
+  name: string
+  description: string
+}
+
+/** One uploaded build of a managed application. Newest first on the app. */
+export interface AppVersion {
+  id: string
+  version: string
+  sizeBytes: number
+  uploadedAt: string
+  uploadedBy: string
+  /** Devices currently running this build. */
+  installedDevices: number
+  /** Device groups this build is published to. */
+  publishedGroups: number
+  /** Windows: ['64-bit','32-bit']; macOS: ['Universal'] or ['Apple Silicon','Intel']. */
+  architectures: string[]
+  releaseNotes?: string
+}
+
+/** A managed application — the head version drives its row's version/size/date. */
+export interface ManagedApp {
+  id: string
+  platform: AppPlatform
+  name: string
+  publisher: string
+  /** App logo/icon (any image the browser can render — PNG, SVG…). */
+  iconUrl?: string
+  status: AppStatus
+  /** Package kind — Windows: 'MSI'; macOS: 'PKG' | 'DMG'. */
+  packageType: string
+  /** Bundle identifier (macOS) — provenance shown in details. */
+  bundleId?: string
+  /** Install command / arguments chosen in the upload wizard. */
+  commandLine?: string
+  /** Device policies assigned to this app (the "profile"). Absent = none. */
+  policyIds?: string[]
+  installTarget?: AppInstallTarget
+  publishAction?: AppPublishAction
+  createdAt: string
+  createdBy: string
+  /** Newest first — versions[0] is the current build shown in the list. */
+  versions: AppVersion[]
+}

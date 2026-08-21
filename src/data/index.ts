@@ -5,6 +5,8 @@ export { seedConfigurations } from './configurations'
 export { seedPolicies } from './policies'
 export { seedScans } from './scans'
 export { seedFindings } from './findings'
+export { seedApplications } from './applications'
+export { seedAppPolicies, appPolicyById } from './appPolicies'
 export {
   seedLabels,
   labelById,

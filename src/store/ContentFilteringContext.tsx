@@ -26,6 +26,8 @@ type NewClassification = Omit<
   'id' | 'isDefault' | 'createdAt' | 'updatedAt'
 >
 
+type NewRule = Omit<Rule, 'id' | 'isDefault'>
+
 interface ContextValue {
   currentUser: string
   labels: Label[]
@@ -37,13 +39,17 @@ interface ContextValue {
   updateClassification: (id: string, patch: Partial<NewClassification>) => void
   deleteClassification: (id: string) => void
   duplicateClassification: (id: string) => DlpClassification | undefined
+  addRule: (input: NewRule) => Rule
+  updateRule: (id: string, patch: Partial<NewRule>) => void
+  deleteRule: (id: string) => void
+  duplicateRule: (id: string) => Rule | undefined
 }
 
 const ContentFilteringContext = createContext<ContextValue | null>(null)
 
 export function ContentFilteringProvider({ children }: { children: ReactNode }) {
   const [labels, setLabels] = useState<Label[]>(seedLabels)
-  const [ruleDictionary] = useState<Rule[]>(seedRuleDictionary)
+  const [ruleDictionary, setRuleDictionary] = useState<Rule[]>(seedRuleDictionary)
   const [defaultClassifications] = useState<DlpClassification[]>(
     seedDefaultClassifications,
   )
@@ -104,6 +110,38 @@ export function ContentFilteringProvider({ children }: { children: ReactNode }) 
     [defaultClassifications, customClassifications],
   )
 
+  const addRule = useCallback((input: NewRule) => {
+    const rule: Rule = { ...input, id: uid('rule'), isDefault: false }
+    setRuleDictionary((prev) => [rule, ...prev])
+    return rule
+  }, [])
+
+  const updateRule = useCallback((id: string, patch: Partial<NewRule>) => {
+    setRuleDictionary((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    )
+  }, [])
+
+  const deleteRule = useCallback((id: string) => {
+    setRuleDictionary((prev) => prev.filter((r) => r.id !== id))
+  }, [])
+
+  const duplicateRule = useCallback(
+    (id: string) => {
+      const source = ruleDictionary.find((r) => r.id === id)
+      if (!source) return undefined
+      const copy: Rule = {
+        ...source,
+        id: uid('rule'),
+        name: `${source.name} (copy)`,
+        isDefault: false,
+      }
+      setRuleDictionary((prev) => [copy, ...prev])
+      return copy
+    },
+    [ruleDictionary],
+  )
+
   const value = useMemo<ContextValue>(
     () => ({
       currentUser: CURRENT_USER,
@@ -116,6 +154,10 @@ export function ContentFilteringProvider({ children }: { children: ReactNode }) 
       updateClassification,
       deleteClassification,
       duplicateClassification,
+      addRule,
+      updateRule,
+      deleteRule,
+      duplicateRule,
     }),
     [
       labels,
@@ -127,6 +169,10 @@ export function ContentFilteringProvider({ children }: { children: ReactNode }) 
       updateClassification,
       deleteClassification,
       duplicateClassification,
+      addRule,
+      updateRule,
+      deleteRule,
+      duplicateRule,
     ],
   )
 

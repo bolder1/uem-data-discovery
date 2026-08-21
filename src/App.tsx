@@ -6,8 +6,11 @@ import {
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { DataDiscoveryProvider } from '@/store/DataDiscoveryContext'
 import { ContentFilteringProvider } from '@/store/ContentFilteringContext'
+import { ApplicationManagementProvider } from '@/store/ApplicationManagementContext'
 import { AppShell } from '@/components/layout/AppShell'
 import { Placeholder } from '@/pages/Placeholder'
+import { ApplicationManagement } from '@/pages/applicationManagement/ApplicationManagement'
+import { ApplicationPolicies } from '@/pages/applicationManagement/ApplicationPolicies'
 import { Dashboard } from '@/pages/v2/Dashboard'
 import { SourcesCatalog } from '@/pages/v2/SourcesCatalog'
 import { ProviderDetail } from '@/pages/v2/ProviderDetail'
@@ -17,6 +20,7 @@ import { PolicyDetail } from '@/pages/v2/PolicyDetail'
 import { ScanJobs } from '@/pages/v2/ScanJobs'
 import { Results } from '@/pages/v2/Results'
 import { ClassificationList } from '@/pages/contentFiltering/ClassificationList'
+import { RuleDictionaryList } from '@/pages/contentFiltering/RuleDictionaryList'
 
 const router = createBrowserRouter([
   {
@@ -42,6 +46,14 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="classification" replace /> },
           { path: 'classification', element: <ClassificationList /> },
+          { path: 'rule-dictionary', element: <RuleDictionaryList /> },
+        ],
+      },
+      {
+        path: 'application-management',
+        children: [
+          { index: true, element: <ApplicationManagement /> },
+          { path: 'policies', element: <ApplicationPolicies /> },
         ],
       },
       { path: 'module/:slug', element: <Placeholder /> },
@@ -54,9 +66,11 @@ export default function App() {
   return (
     <DataDiscoveryProvider>
       <ContentFilteringProvider>
-        <TooltipProvider delayDuration={200}>
-          <RouterProvider router={router} />
-        </TooltipProvider>
+        <ApplicationManagementProvider>
+          <TooltipProvider delayDuration={200}>
+            <RouterProvider router={router} />
+          </TooltipProvider>
+        </ApplicationManagementProvider>
       </ContentFilteringProvider>
     </DataDiscoveryProvider>
   )

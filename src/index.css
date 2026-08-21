@@ -122,3 +122,31 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+/*
+  Product-style skin — a page-scoped exception used by Application Management's
+  "Product UI" toggle to match the live product (MUI-based). Only shared form
+  controls under [data-skin='product'] are nudged; nothing else in the app is
+  affected. The bespoke product table/tabs/pagination live in ProductView.tsx.
+*/
+[data-skin='product'] [data-slot='input'],
+[data-skin='product'] [data-slot='textarea'],
+[data-skin='product'] [data-slot='select-trigger'] {
+  border-radius: 0.375rem;
+  border-color: hsl(214 20% 82%);
+}
+[data-skin='product'] [data-slot='input'],
+[data-skin='product'] [data-slot='select-trigger'] {
+  height: 2.5rem;
+}
+/* Product buttons are mostly square with a small radius. */
+[data-skin='product'] [data-slot='button'] {
+  border-radius: 0.25rem;
+}
+/* Copy the product's primary blue onto solid (default) buttons. */
+[data-skin='product'] [data-slot='button'][data-variant='default'] {
+  background-color: #1a56db;
+}
+[data-skin='product'] [data-slot='button'][data-variant='default']:hover {
+  background-color: #1e40af;
+}

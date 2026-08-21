@@ -13,6 +13,9 @@ import {
   Filter,
   Globe,
   Smartphone,
+  AppWindow,
+  MapPin,
+  Megaphone,
   Package,
   Database,
   ShieldCheck,
@@ -38,6 +41,7 @@ interface NavLeaf {
 
 const DD_BASE = '/data-discovery'
 const CF_BASE = '/content-filtering'
+const AM_BASE = '/application-management'
 
 // Scan Jobs is intentionally not a primary nav item — recent scans live on the
 // Dashboard with a "View all" link into the (still-routed) scans page.
@@ -48,14 +52,23 @@ const dataDiscoveryChildren: NavLeaf[] = [
   { label: 'Results', icon: FileSearch, to: `${DD_BASE}/results` },
 ]
 
-// Classification is the first live piece of Content Filtering; the rest of
-// its sub-pages land the same way Data Discovery's did — one at a time.
+// Content Filtering is filling in one page at a time, the way Data Discovery
+// did — Classification and Rule Dictionary are live; the rest are inert.
 const contentFilteringChildren: NavLeaf[] = [
   { label: 'Classification', icon: Tags, to: `${CF_BASE}/classification` },
-  { label: 'Rule Dictionary', icon: BookMarked, inert: true },
+  { label: 'Rule Dictionary', icon: BookMarked, to: `${CF_BASE}/rule-dictionary` },
   { label: 'File Fingerprints', icon: Fingerprint, inert: true },
   { label: 'Exact Data Matching', icon: FileDigit, inert: true },
   { label: 'Labels', icon: Tag, inert: true },
+]
+
+// Mobile Device Management → Unified Controls. Application Management is the
+// live page; the rest are stubbed the way the other modules fill in over time.
+const mobileDeviceMgmtChildren: NavLeaf[] = [
+  { label: 'Application Management', icon: AppWindow, to: AM_BASE },
+  { label: 'Policies', icon: ShieldCheck, to: `${AM_BASE}/policies` },
+  { label: 'Geofencing', icon: MapPin, inert: true },
+  { label: 'Message Broadcasting', icon: Megaphone, inert: true },
 ]
 
 interface Section {
@@ -91,7 +104,6 @@ const sections: Section[] = [
 
 const trailing: NavLeaf[] = [
   { label: 'Secure Web Gateway', icon: Globe, inert: true },
-  { label: 'Mobile Device Management', icon: Smartphone, inert: true },
   { label: 'Patch Management', icon: Package, inert: true },
 ]
 
@@ -149,11 +161,15 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const { pathname } = useLocation()
   const onDataDiscovery = pathname.startsWith(DD_BASE)
   const onContentFiltering = pathname.startsWith(CF_BASE)
+  const onMobileDeviceMgmt = pathname.startsWith(AM_BASE)
   const [ddOpen, setDdOpen] = useState(true)
   const [cfOpen, setCfOpen] = useState(true)
+  const [mdmOpen, setMdmOpen] = useState(true)
 
   const isActive = (to: string) =>
-    to === DD_BASE ? pathname === DD_BASE : pathname.startsWith(to)
+    to === DD_BASE || to === AM_BASE
+      ? pathname === to
+      : pathname.startsWith(to)
 
   return (
     <>
@@ -249,6 +265,49 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           {cfOpen && (
             <div className="space-y-1">
               {contentFilteringChildren.map((item) => (
+                <NavRow
+                  key={item.label}
+                  item={item}
+                  active={!!item.to && isActive(item.to)}
+                  indent
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Device Management — Application Management live under it */}
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => setMdmOpen((v) => !v)}
+            className={cn(
+              'flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors',
+              onMobileDeviceMgmt
+                ? 'text-foreground'
+                : 'text-sidebar-foreground hover:bg-secondary',
+            )}
+          >
+            <Smartphone
+              className={cn(
+                'size-4 shrink-0',
+                onMobileDeviceMgmt ? 'text-primary' : 'text-sidebar-muted',
+              )}
+            />
+            <span className="flex-1 text-left font-medium">
+              Mobile Device Management
+            </span>
+            <ChevronDown
+              className={cn(
+                'size-4 text-sidebar-muted transition-transform',
+                mdmOpen && 'rotate-180',
+              )}
+            />
+          </button>
+          {mdmOpen && (
+            <div className="space-y-1">
+              {mobileDeviceMgmtChildren.map((item) => (
                 <NavRow
                   key={item.label}
                   item={item}
