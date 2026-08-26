@@ -38,15 +38,15 @@ import { formatBytes, formatDate } from '@/lib/format'
 import type { AppPlatform } from '@/types'
 import { PlatformIcon, platformLabel } from './PlatformIcon'
 import { AppIcon } from './AppIcon'
-import { SkinToggle } from './SkinToggle'
+import { ViewSwitcher } from './ViewSwitcher'
 import { PoliciesCell } from './PoliciesCell'
 import { GroupAddedCell } from './GroupAddedCell'
 import type { AppMgmtViewProps } from './appMgmtView'
 
 export function ClassicView(props: AppMgmtViewProps) {
   const {
-    revamp,
-    onToggleSkin,
+    view,
+    onChangeView,
     os,
     onSwitchOs,
     winCount,
@@ -84,7 +84,7 @@ export function ClassicView(props: AppMgmtViewProps) {
         description="Upload and deploy Windows (MSI) and macOS applications across your enrolled devices."
         actions={
           <div className="flex items-center gap-3">
-            <SkinToggle revamp={revamp} onChange={onToggleSkin} />
+            <ViewSwitcher view={view} onChange={onChangeView} />
             <Button onClick={onUpload}>
               <Upload className="size-4" />
               Upload {platformLabel(os)} App

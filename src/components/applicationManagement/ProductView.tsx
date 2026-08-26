@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils'
 import { formatBytes, formatDate } from '@/lib/format'
 import { platformLabel } from './PlatformIcon'
 import { AppIcon } from './AppIcon'
-import { SkinToggle } from './SkinToggle'
+import { ViewSwitcher } from './ViewSwitcher'
 import { PoliciesCell } from './PoliciesCell'
 import { GroupAddedCell } from './GroupAddedCell'
 import type { AppMgmtViewProps } from './appMgmtView'
@@ -35,8 +35,8 @@ const PAGE_SIZE = 5
 // icon-left search, solid-blue actions and reference-style pagination.
 export function ProductView(props: AppMgmtViewProps) {
   const {
-    revamp,
-    onToggleSkin,
+    view,
+    onChangeView,
     os,
     onSwitchOs,
     query,
@@ -86,7 +86,7 @@ export function ProductView(props: AppMgmtViewProps) {
             Manage and deploy your organization&rsquo;s Windows and macOS applications
           </p>
         </div>
-        <SkinToggle revamp={revamp} onChange={onToggleSkin} />
+        <ViewSwitcher view={view} onChange={onChangeView} />
       </div>
 
       {/* underline tabs */}

@@ -14,14 +14,21 @@ export interface AppSummary {
 }
 
 /**
+ * Which experience the Application Management page renders. A page-scoped
+ * switcher lets you compare them side by side. Each explores a different axis
+ * of layout / interaction (see `APP_VIEWS` in ViewSwitcher for blurbs).
+ */
+export type AppView = 'table' | 'cards' | 'workspace'
+
+/**
  * The controller (the page) owns all state + store actions and hands this
  * bundle to whichever view is active — the design-system ClassicView or the
  * product-styled ProductView — so both share one source of truth.
  */
 export interface AppMgmtViewProps {
-  // skin toggle
-  revamp: boolean
-  onToggleSkin: (v: boolean) => void
+  // page-scoped experience switcher (Table / Cards / Workspace)
+  view: AppView
+  onChangeView: (v: AppView) => void
 
   // os tab + search
   os: AppPlatform

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useApplicationManagement } from '@/store/ApplicationManagementContext'
 import {
   AlertDialog,
@@ -14,18 +14,29 @@ import type { AppPlatform, ManagedApp } from '@/types'
 import { UploadAppDrawer } from '@/components/applicationManagement/UploadAppDrawer'
 import { AppDetailsDrawer } from '@/components/applicationManagement/AppDetailsDrawer'
 import { AssignPoliciesDrawer } from '@/components/applicationManagement/AssignPoliciesDrawer'
-import { ClassicView } from '@/components/applicationManagement/ClassicView'
 import { ProductView } from '@/components/applicationManagement/ProductView'
+import { CardsView } from '@/components/applicationManagement/CardsView'
+import { WorkspaceView } from '@/components/applicationManagement/WorkspaceView'
 import type {
   AppMgmtViewProps,
+  AppView,
   ConfirmTarget,
 } from '@/components/applicationManagement/appMgmtView'
+
+const VIEW_COMPONENTS: Record<
+  AppView,
+  (props: AppMgmtViewProps) => ReactNode
+> = {
+  table: ProductView,
+  cards: CardsView,
+  workspace: WorkspaceView,
+}
 
 export function ApplicationManagement() {
   const { apps, appPolicies, deleteApp, deleteVersion, deleteApps } =
     useApplicationManagement()
 
-  const [revamp, setRevamp] = useState(true)
+  const [view, setView] = useState<AppView>('workspace')
   const [os, setOs] = useState<AppPlatform>('windows')
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -106,12 +117,14 @@ export function ApplicationManagement() {
     setConfirm(null)
   }
 
-  const skin = revamp ? 'product' : undefined
+  // Cards + Workspace use the design-system drawers; only the Table (Product UI)
+  // re-skins them to match the live product.
+  const skin = view === 'table' ? 'product' : undefined
 
   const vm: AppMgmtViewProps = {
-    revamp,
-    onToggleSkin: (v) => {
-      setRevamp(v)
+    view,
+    onChangeView: (v) => {
+      setView(v)
       clearSel()
     },
     os,
@@ -141,9 +154,11 @@ export function ApplicationManagement() {
     onRequestDelete: setConfirm,
   }
 
+  const ActiveView = VIEW_COMPONENTS[view]
+
   return (
     <>
-      {revamp ? <ProductView {...vm} /> : <ClassicView {...vm} />}
+      <ActiveView {...vm} />
 
       {/* upload (new app) */}
       {uploadOpen && (
