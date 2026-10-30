@@ -5,8 +5,12 @@ import {
 } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { DataDiscoveryProvider } from '@/store/DataDiscoveryContext'
+import { ContentFilteringProvider } from '@/store/ContentFilteringContext'
+import { ApplicationManagementProvider } from '@/store/ApplicationManagementContext'
 import { AppShell } from '@/components/layout/AppShell'
 import { Placeholder } from '@/pages/Placeholder'
+import { ApplicationManagement } from '@/pages/applicationManagement/ApplicationManagement'
+import { ApplicationPolicies } from '@/pages/applicationManagement/ApplicationPolicies'
 import { Dashboard } from '@/pages/v2/Dashboard'
 import { SourcesCatalog } from '@/pages/v2/SourcesCatalog'
 import { ProviderDetail } from '@/pages/v2/ProviderDetail'
@@ -15,6 +19,8 @@ import { PoliciesList } from '@/pages/v2/PoliciesList'
 import { PolicyDetail } from '@/pages/v2/PolicyDetail'
 import { ScanJobs } from '@/pages/v2/ScanJobs'
 import { Results } from '@/pages/v2/Results'
+import { ClassificationList } from '@/pages/contentFiltering/ClassificationList'
+import { RuleDictionaryList } from '@/pages/contentFiltering/RuleDictionaryList'
 
 const router = createBrowserRouter([
   {
@@ -35,6 +41,21 @@ const router = createBrowserRouter([
           { path: 'results', element: <Results /> },
         ],
       },
+      {
+        path: 'content-filtering',
+        children: [
+          { index: true, element: <Navigate to="classification" replace /> },
+          { path: 'classification', element: <ClassificationList /> },
+          { path: 'rule-dictionary', element: <RuleDictionaryList /> },
+        ],
+      },
+      {
+        path: 'application-management',
+        children: [
+          { index: true, element: <ApplicationManagement /> },
+          { path: 'policies', element: <ApplicationPolicies /> },
+        ],
+      },
       { path: 'module/:slug', element: <Placeholder /> },
       { path: '*', element: <Navigate to="/data-discovery" replace /> },
     ],
@@ -44,9 +65,13 @@ const router = createBrowserRouter([
 export default function App() {
   return (
     <DataDiscoveryProvider>
-      <TooltipProvider delayDuration={200}>
-        <RouterProvider router={router} />
-      </TooltipProvider>
+      <ContentFilteringProvider>
+        <ApplicationManagementProvider>
+          <TooltipProvider delayDuration={200}>
+            <RouterProvider router={router} />
+          </TooltipProvider>
+        </ApplicationManagementProvider>
+      </ContentFilteringProvider>
     </DataDiscoveryProvider>
   )
 }

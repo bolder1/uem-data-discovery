@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
-import { STATUS_META, SCAN_STATUS_META } from '@/lib/format'
-import type { ConnectionStatus, ScanStatus } from '@/types'
+import { STATUS_META, SCAN_STATUS_META, APP_STATUS_META } from '@/lib/format'
+import type { AppStatus, ConnectionStatus, ScanStatus } from '@/types'
 
 export function StatusDot({ className }: { className?: string }) {
   return (
@@ -42,6 +42,29 @@ export function ScanStatusBadge({
   pill?: boolean
 }) {
   const m = SCAN_STATUS_META[status]
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 text-xs font-medium',
+        pill
+          ? cn('rounded-full border px-2 py-0.5', m.badge)
+          : 'text-foreground',
+      )}
+    >
+      <StatusDot className={m.dot} />
+      {m.label}
+    </span>
+  )
+}
+
+export function AppStatusBadge({
+  status,
+  pill = true,
+}: {
+  status: AppStatus
+  pill?: boolean
+}) {
+  const m = APP_STATUS_META[status]
   return (
     <span
       className={cn(
