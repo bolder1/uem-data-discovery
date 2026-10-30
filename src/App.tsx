@@ -21,6 +21,10 @@ import { ScanJobs } from '@/pages/v2/ScanJobs'
 import { Results } from '@/pages/v2/Results'
 import { ClassificationList } from '@/pages/contentFiltering/ClassificationList'
 import { RuleDictionaryList } from '@/pages/contentFiltering/RuleDictionaryList'
+import { AppLibrary } from '@/pages/apps/AppLibrary'
+import { AppSetupPage } from '@/pages/apps/AppSetupPage'
+import { CategoriesPage } from '@/pages/apps/CategoriesPage'
+import { AppLibraryProvider } from '@/store/AppLibraryContext'
 
 const router = createBrowserRouter([
   {
@@ -56,6 +60,9 @@ const router = createBrowserRouter([
           { path: 'policies', element: <ApplicationPolicies /> },
         ],
       },
+      { path: 'mdm/apple/app-library', element: <AppLibrary /> },
+      { path: 'mdm/apple/app-library/:appId', element: <AppSetupPage /> },
+      { path: 'mdm/categories', element: <CategoriesPage /> },
       { path: 'module/:slug', element: <Placeholder /> },
       { path: '*', element: <Navigate to="/data-discovery" replace /> },
     ],
@@ -67,9 +74,11 @@ export default function App() {
     <DataDiscoveryProvider>
       <ContentFilteringProvider>
         <ApplicationManagementProvider>
-          <TooltipProvider delayDuration={200}>
-            <RouterProvider router={router} />
-          </TooltipProvider>
+          <AppLibraryProvider>
+            <TooltipProvider delayDuration={200}>
+              <RouterProvider router={router} />
+            </TooltipProvider>
+          </AppLibraryProvider>
         </ApplicationManagementProvider>
       </ContentFilteringProvider>
     </DataDiscoveryProvider>

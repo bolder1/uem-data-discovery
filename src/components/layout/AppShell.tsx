@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Sidebar, SidebarNav } from './Sidebar'
 import { Topbar } from './Topbar'
+import { PageFooterSlot } from './PageFooter'
 
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -29,6 +30,7 @@ export function AppShell() {
             <Outlet />
           </div>
         </main>
+        <PageFooterSlot />
       </div>
     </div>
   )

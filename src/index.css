@@ -150,3 +150,61 @@
 [data-skin='product'] [data-slot='button'][data-variant='default']:hover {
   background-color: #1e40af;
 }
+
+/* Empty-state scenes (EmptyArt.tsx). Off for reduced motion. */
+@keyframes ea-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes ea-ping { 0% { transform: scale(1); opacity: 0.7; } 80%, 100% { transform: scale(1.7); opacity: 0; } }
+@keyframes ea-march { to { stroke-dashoffset: -16; } }
+@keyframes ea-land {
+  0%, 12% { opacity: 0; transform: translateY(-26px) scale(0.6); }
+  28% { opacity: 1; transform: translateY(0) scale(1.08); }
+  36%, 78% { opacity: 1; transform: translateY(0) scale(1); }
+  92%, 100% { opacity: 0; transform: translateY(0) scale(0.9); }
+}
+@keyframes ea-spin { to { transform: rotate(360deg); } }
+@keyframes ea-pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes ea-cursor {
+  0%, 100% { transform: translate(0, 0); }
+  40% { transform: translate(-46px, 22px); }
+  48% { transform: translate(-46px, 22px) scale(0.82); }
+  56% { transform: translate(-46px, 22px); }
+}
+@keyframes ea-drop {
+  0% { transform: translate(0, -12px); opacity: 0; }
+  20%, 60% { transform: translate(0, 0); opacity: 1; }
+  85% { transform: translate(0, 44px) scale(0.6); opacity: 0; }
+  100% { transform: translate(0, -12px); opacity: 0; }
+}
+@keyframes ea-slot {
+  0%, 15% { transform: translate(0, 0) scale(1); }
+  55%, 75% { transform: translate(-46px, -40px) scale(0.78); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes ea-slide { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(2.6rem); } }
+@keyframes ea-travel {
+  0% { transform: translateX(-60px) scale(0.6); opacity: 0; }
+  20% { opacity: 1; transform: translateX(-40px) scale(1); }
+  80% { opacity: 1; transform: translateX(40px) scale(1); }
+  100% { transform: translateX(60px) scale(0.6); opacity: 0; }
+}
+/* Hover: icons lift and glow (uses scale/translate so it composes with the float animation). */
+.ea-hover { cursor: default; transition: scale 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease; }
+.ea-hover:hover { scale: 1.12; }
+@media (prefers-reduced-motion: no-preference) {
+  /* Smooth scrolling for the page and the app shell's scroll areas; scenes get their own
+     compositor layers so the animations don't repaint while scrolling. */
+  html, main, .overflow-y-auto { scroll-behavior: smooth; overscroll-behavior-y: contain; }
+  .ea-pop, .ea-slide, .ea-march { will-change: transform; }
+  .ea-float, .ea-ping, .ea-land, .ea-drop, .ea-slot, .ea-travel, .ea-cursor { will-change: transform; }
+  .ea-float { animation: ea-float 6s ease-in-out infinite; }
+  .ea-land { animation: ea-land 4.5s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+  .ea-ping { animation: ea-ping 4.5s cubic-bezier(0, 0, 0.2, 1) infinite; }
+  .ea-march { animation: ea-march 1s linear infinite; }
+  .ea-spin { animation: ea-spin 6s linear infinite; }
+  .ea-pop { animation: ea-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  .ea-cursor { animation: ea-cursor 3.6s ease-in-out infinite; }
+  .ea-drop { animation: ea-drop 3.2s ease-in-out infinite; }
+  .ea-slot { animation: ea-slot 3.6s ease-in-out infinite; }
+  .ea-slide { animation: ea-slide 2.6s ease-in-out infinite; }
+  .ea-travel { animation: ea-travel 2.4s ease-in-out infinite; }
+}

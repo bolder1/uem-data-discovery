@@ -14,9 +14,11 @@ import {
 export function DiscardDraftDialog({
   blocker,
   what = 'draft',
+  title,
 }: {
   blocker: Blocker
   what?: string
+  title?: string
 }) {
   const blocked = blocker.state === 'blocked'
   return (
@@ -28,7 +30,7 @@ export function DiscardDraftDialog({
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Discard this {what}?</AlertDialogTitle>
+          <AlertDialogTitle>{title ?? `Discard this ${what}?`}</AlertDialogTitle>
           <AlertDialogDescription>
             Your progress here will be lost.
           </AlertDialogDescription>
@@ -48,6 +50,34 @@ export function DiscardDraftDialog({
           >
             Discard
           </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+// Same prompt for a side panel that is closing with unsaved edits.
+export function DiscardChangesDialog({
+  open,
+  onKeep,
+  onDiscard,
+}: {
+  open: boolean
+  onKeep: () => void
+  onDiscard: () => void
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={(o) => !o && onKeep()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Your edits in this panel will be lost.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep editing</AlertDialogCancel>
+          <AlertDialogAction onClick={onDiscard}>Discard</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

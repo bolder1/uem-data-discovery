@@ -32,6 +32,11 @@ export function formatDate(iso?: string): string {
   return dateFmt.format(new Date(iso))
 }
 
+/** Date-only values (seed data) show as a date; full timestamps also show the time. */
+export function formatWhen(at: string): string {
+  return at.includes('T') ? formatDateTime(at) : formatDate(at)
+}
+
 export function formatDuration(sec?: number): string {
   if (sec == null) return '—'
   if (sec < 60) return `${sec}s`

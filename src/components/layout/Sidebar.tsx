@@ -27,6 +27,7 @@ import {
   Fingerprint,
   FileDigit,
   Tag,
+  LayoutGrid,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -42,6 +43,7 @@ interface NavLeaf {
 const DD_BASE = '/data-discovery'
 const CF_BASE = '/content-filtering'
 const AM_BASE = '/application-management'
+const MDM_BASE = '/mdm'
 
 // Scan Jobs is intentionally not a primary nav item — recent scans live on the
 // Dashboard with a "View all" link into the (still-routed) scans page.
@@ -67,6 +69,8 @@ const contentFilteringChildren: NavLeaf[] = [
 const mobileDeviceMgmtChildren: NavLeaf[] = [
   { label: 'Application Management', icon: AppWindow, to: AM_BASE },
   { label: 'Policies', icon: ShieldCheck, to: `${AM_BASE}/policies` },
+  { label: 'Apple App Library', icon: LayoutGrid, to: `${MDM_BASE}/apple/app-library` },
+  { label: 'Categories', icon: Tag, to: `${MDM_BASE}/categories` },
   { label: 'Geofencing', icon: MapPin, inert: true },
   { label: 'Message Broadcasting', icon: Megaphone, inert: true },
 ]
@@ -142,6 +146,7 @@ function NavRow({
     <Link
       to={item.to}
       onClick={onNavigate}
+      aria-current={active ? 'page' : undefined}
       className={cn(
         'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors',
         indent && 'pl-9',
@@ -161,7 +166,8 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const { pathname } = useLocation()
   const onDataDiscovery = pathname.startsWith(DD_BASE)
   const onContentFiltering = pathname.startsWith(CF_BASE)
-  const onMobileDeviceMgmt = pathname.startsWith(AM_BASE)
+  const onMobileDeviceMgmt =
+    pathname.startsWith(AM_BASE) || pathname.startsWith(MDM_BASE)
   const [ddOpen, setDdOpen] = useState(true)
   const [cfOpen, setCfOpen] = useState(true)
   const [mdmOpen, setMdmOpen] = useState(true)
