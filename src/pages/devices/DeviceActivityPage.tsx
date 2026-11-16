@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
 import { tabOf } from '@/data/deviceInventory'
 import { fleetCommands, isOpen, isStuck, relTime } from '@/data/deviceActivity'
-import { DeliverySteps, stateLabel } from '@/components/devices/ActivityTab'
+import { DeliverySteps, stateLabel } from '@/components/devices/HistorySheet'
 
 type StateFilter = 'all' | 'attention' | 'open' | 'done'
 const PAGE = 15
