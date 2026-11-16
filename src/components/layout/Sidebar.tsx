@@ -91,7 +91,7 @@ const sections: Section[] = [
   {
     title: 'Device Inventory',
     items: [
-      { label: 'Devices', icon: MonitorSmartphone, inert: true },
+      { label: 'Devices', icon: MonitorSmartphone, to: '/devices' },
       { label: 'Device Groups', icon: Users, inert: true },
       { label: 'Onboarding Requests', icon: UserPlus, inert: true },
     ],
@@ -196,7 +196,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
               {section.title}
             </p>
             {section.items.map((item) => (
-              <NavRow key={item.label} item={item} />
+              <NavRow key={item.label} item={item} active={!!item.to && isActive(item.to)} onNavigate={onNavigate} />
             ))}
           </div>
         ))}

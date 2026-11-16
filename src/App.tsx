@@ -25,6 +25,9 @@ import { AppLibrary } from '@/pages/apps/AppLibrary'
 import { AppSetupPage } from '@/pages/apps/AppSetupPage'
 import { CategoriesPage } from '@/pages/apps/CategoriesPage'
 import { AppLibraryProvider } from '@/store/AppLibraryContext'
+import { DevicesList } from '@/pages/devices/DevicesList'
+import { DeviceDetail } from '@/pages/devices/DeviceDetail'
+import { DeviceActivityPage } from '@/pages/devices/DeviceActivityPage'
 
 const router = createBrowserRouter([
   {
@@ -63,6 +66,9 @@ const router = createBrowserRouter([
       { path: 'mdm/apple/app-library', element: <AppLibrary /> },
       { path: 'mdm/apple/app-library/:appId', element: <AppSetupPage /> },
       { path: 'mdm/categories', element: <CategoriesPage /> },
+      { path: 'devices', element: <DevicesList /> },
+      { path: 'devices/activity', element: <DeviceActivityPage /> },
+      { path: 'devices/:deviceId', element: <DeviceDetail /> },
       { path: 'module/:slug', element: <Placeholder /> },
       { path: '*', element: <Navigate to="/data-discovery" replace /> },
     ],
