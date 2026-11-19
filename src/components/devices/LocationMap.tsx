@@ -8,14 +8,22 @@ import type { Fence, Fix } from '@/data/deviceLocation'
 
 export type MapLook = 'map' | 'satellite'
 
-const tiles: Record<MapLook, { url: string; attribution: string; labels?: string }> = {
-  map: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', attribution: 'Map &copy; Esri, HERE, OpenStreetMap' },
+// maxZoom is the deepest level each service has tiles for where the fleet is
+// (measured for Pune, Mumbai, Bengaluru and Lonavala). One level further and
+// Esri answers with a grey "Map data not yet available" tile, not an error.
+const tiles: Record<MapLook, { url: string; attribution: string; labels?: string; maxZoom: number }> = {
+  map: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', attribution: 'Map &copy; Esri, HERE, OpenStreetMap', maxZoom: 17 },
   satellite: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     labels: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
     attribution: 'Imagery &copy; Esri',
+    maxZoom: 18,
   },
 }
+
+/** How close the map goes by itself when it is looking at one place: a few
+ *  streets across. People can zoom in further by hand. */
+const PLACE_ZOOM = 16
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
 
@@ -31,6 +39,9 @@ export function LocationMap({ look, last, path, fence, focus, warn, labels = tru
   const base = useRef<L.LayerGroup | null>(null)
   const data = useRef<L.LayerGroup | null>(null)
   const ring = useRef<L.Layer | null>(null)
+  // The places the map has to show, as text. The parent hands us a new array on
+  // every render, and only a change in the places themselves should re-frame.
+  const frame = JSON.stringify([...path, fence].map((p) => [p.lat, p.lng]))
 
   useEffect(() => {
     const m = L.map(el.current!, { scrollWheelZoom: false, zoomControl: true })
@@ -45,13 +56,12 @@ export function LocationMap({ look, last, path, fence, focus, warn, labels = tru
     const g = base.current!
     g.clearLayers()
     const t = tiles[look]
-    L.tileLayer(t.url, { attribution: t.attribution, subdomains: 'abcd', maxZoom: 19 }).addTo(g)
-    if (t.labels && labels) L.tileLayer(t.labels, { maxZoom: 19, opacity: 0.9 }).addTo(g)
+    L.tileLayer(t.url, { attribution: t.attribution, subdomains: 'abcd', maxZoom: t.maxZoom }).addTo(g)
+    if (t.labels && labels) L.tileLayer(t.labels, { maxZoom: t.maxZoom, opacity: 0.9 }).addTo(g)
   }, [look, labels])
 
   useEffect(() => {
     const g = data.current!
-    const m = map.current!
     g.clearLayers()
     const sat = look === 'satellite'
     const line = sat ? '#ffffff' : '#475569'
@@ -89,9 +99,16 @@ export function LocationMap({ look, last, path, fence, focus, warn, labels = tru
         }),
       }).bindTooltip(`Last location · ${last.place}`, { direction: 'top', offset: [0, -12] }).addTo(g)
     }
-    const pts = [...path, fence].map((p) => [p.lat, p.lng] as [number, number])
-    m.fitBounds(L.latLngBounds(pts).pad(0.3), { animate: false })
   }, [path, last, fence, look, warn, mode])
+
+  // Frame the places, but only when they change. Switching the look, toggling
+  // labels or a re-render of the card must not undo someone's pan or zoom.
+  useEffect(() => {
+    const pts = JSON.parse(frame) as [number, number][]
+    // A device sitting on the office pin makes the bounds a single point, which
+    // would otherwise zoom in as far as the map allows.
+    map.current!.fitBounds(L.latLngBounds(pts).pad(0.3), { animate: false, maxZoom: PLACE_ZOOM })
+  }, [frame])
 
   // Selecting a stop flies there and rings it.
   useEffect(() => {
@@ -100,7 +117,7 @@ export function LocationMap({ look, last, path, fence, focus, warn, labels = tru
     ring.current?.remove()
     if (!focus) return
     ring.current = L.circleMarker([focus.lat, focus.lng], { radius: 16, color: look === 'satellite' ? '#fff' : '#0f172a', weight: 2, fillOpacity: 0 }).addTo(m)
-    m.flyTo([focus.lat, focus.lng], 16, { duration: 0.7 })
+    m.flyTo([focus.lat, focus.lng], PLACE_ZOOM, { duration: 0.7 })
   }, [focus, look])
 
   return <div ref={el} className="h-full w-full" role="img" aria-label={`Map of ${last.place} and the selected day's path`} />
