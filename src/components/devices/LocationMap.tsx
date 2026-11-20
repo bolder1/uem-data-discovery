@@ -120,5 +120,6 @@ export function LocationMap({ look, last, path, fence, focus, warn, labels = tru
     m.flyTo([focus.lat, focus.lng], PLACE_ZOOM, { duration: 0.7 })
   }, [focus, look])
 
-  return <div ref={el} className="h-full w-full" role="img" aria-label={`Map of ${last.place} and the selected day's path`} />
+  // `isolate` keeps Leaflet's own z-indexes (up to 1000) inside the map, so it scrolls under the pinned rows.
+  return <div ref={el} className="isolate h-full w-full" role="img" aria-label={`Map of ${last.place} and the selected day's path`} />
 }

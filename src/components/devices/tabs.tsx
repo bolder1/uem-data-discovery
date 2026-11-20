@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Layers, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { StatusDot } from '@/components/common'
@@ -67,6 +68,37 @@ export function AppsTab({ d, onRetry }: { d: InventoryDevice; onRetry: (name: st
 
 /* ── Groups & policies (iOS had none in the live product) ── */
 
+/** Policies named on the row once the list has to fold. Up to one more than this are shown in full. */
+const SHOWN = 3
+
+/** A group's policies as pills. A long list shows the first few and a count that opens the whole list. */
+function PolicyPills({ group, policies }: { group: string; policies: string[] }) {
+  // Folding starts at two hidden names: "+1 more" would take the room of the pill it hides.
+  const shown = policies.length > SHOWN + 1 ? policies.slice(0, SHOWN) : policies
+  const rest = policies.length - shown.length
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {shown.map((p) => <span key={p} className="rounded bg-secondary px-1.5 py-0.5 text-xs">{p}</span>)}
+      {rest > 0 && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" aria-label={`Show all ${policies.length} policies applied through ${group}`}
+              className="rounded border border-dashed px-1.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:border-brand/40 hover:bg-brand/5 hover:text-foreground data-[state=open]:border-brand/40 data-[state=open]:bg-brand/5 data-[state=open]:text-foreground">
+              +{rest} more
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64">
+            <p className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">{policies.length} policies through {group}</p>
+            <ul className="max-h-64 space-y-1.5 overflow-y-auto px-3 py-2.5 text-sm">
+              {policies.map((p) => <li key={p}>{p}</li>)}
+            </ul>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  )
+}
+
 export function GroupsTab({ d }: { d: InventoryDevice }) {
   const groups = groupsAndPolicies(d)
   return (
@@ -82,7 +114,7 @@ export function GroupsTab({ d }: { d: InventoryDevice }) {
               <TableCell className="text-muted-foreground">{g.smart ? 'Smart' : 'Static'}</TableCell>
               <TableCell>
                 {g.policies.length
-                  ? <div className="flex flex-wrap gap-1">{g.policies.map((p) => <span key={p} className="rounded bg-secondary px-1.5 py-0.5 text-xs">{p}</span>)}</div>
+                  ? <PolicyPills group={g.name} policies={g.policies} />
                   : <span className="text-muted-foreground">No policies through this group</span>}
               </TableCell>
             </TableRow>

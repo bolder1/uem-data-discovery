@@ -52,8 +52,9 @@ export function DeviceHero({ d }: { d: InventoryDevice }) {
         </div>
       )}
       <div className="flex flex-col gap-5 p-6 md:flex-row md:items-start">
-        <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl border bg-gradient-to-b from-white to-slate-100 text-slate-700 shadow-sm">
-          <Icon className="size-8" strokeWidth={1.5} />
+        {/* The single brand accent on the card (DESIGN.md: accent icons use the brand token). */}
+        <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
+          <Icon className="size-7" strokeWidth={1.75} />
         </div>
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">

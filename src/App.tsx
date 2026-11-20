@@ -66,9 +66,10 @@ const router = createBrowserRouter([
       { path: 'mdm/apple/app-library', element: <AppLibrary /> },
       { path: 'mdm/apple/app-library/:appId', element: <AppSetupPage /> },
       { path: 'mdm/categories', element: <CategoriesPage /> },
-      { path: 'devices', element: <DevicesList /> },
-      { path: 'devices/activity', element: <DeviceActivityPage /> },
-      { path: 'devices/:deviceId', element: <DeviceDetail /> },
+      // `wide` lets a page use the whole window instead of the 1280px reading width.
+      { path: 'devices', element: <DevicesList />, handle: { wide: true } },
+      { path: 'devices/activity', element: <DeviceActivityPage />, handle: { wide: true } },
+      { path: 'devices/:deviceId', element: <DeviceDetail />, handle: { wide: true } },
       { path: 'module/:slug', element: <Placeholder /> },
       { path: '*', element: <Navigate to="/data-discovery" replace /> },
     ],

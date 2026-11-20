@@ -188,13 +188,14 @@ export function systemDetails(d: InventoryDevice): DetailCategory[] {
 /* ── groups, policies, apps, location ───────────────────── */
 
 export function groupsAndPolicies(d: InventoryDevice) {
+  // Lengths vary on purpose: one name, a handful, and enough that the row has to fold.
   const policies: Record<string, string[]> = {
-    'Engineering Macs': ['FileVault required', 'Firewall on', 'Dev tools allowed'],
-    'Sales iPhones': ['Passcode 6-digit', 'Managed Open In'],
+    'Engineering Macs': ['FileVault required', 'Firewall on', 'Dev tools allowed', 'Gatekeeper on', 'Screen lock 5 min'],
+    'Sales iPhones': ['Passcode 6-digit', 'Managed Open In', 'CRM app required', 'Per-app VPN'],
     'Shared kiosks': ['Single App Mode', 'Kiosk restrictions'],
-    'Remote workers': ['VPN always on'],
+    'Remote workers': ['VPN always on', 'Wi-Fi: Corp-Secure', 'Screen lock 2 min', 'AirDrop off', 'iCloud backup off', 'USB accessories locked', 'OS updates within 7 days'],
     'Pilot devices': ['Beta OS updates'],
-    'Leadership devices': ['Lost Mode contact: IT desk'],
+    'Leadership devices': ['Lost Mode contact: IT desk', 'Passcode 8-digit'],
   }
   return d.groups.map((g) => ({ name: g, smart: !g.startsWith('Default') && g !== 'Pilot devices', policies: policies[g] ?? [] }))
 }

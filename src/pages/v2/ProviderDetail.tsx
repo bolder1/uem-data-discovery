@@ -11,8 +11,6 @@ import {
   Loader2,
   CheckCircle2,
   ChevronRight,
-  ChevronDown,
-  Check,
   Database,
   ScanSearch,
   Pencil,
@@ -45,6 +43,7 @@ import {
   MaskedSecret,
   AuditStamp,
   EmptyState,
+  CrumbSwitcher,
 } from '@/components/common'
 import { PolicyTable, ScopeTable, FindingsTable } from '@/components/v2/tables'
 import { ConfigureDrawer } from '@/components/v2/ConfigureDrawer'
@@ -127,43 +126,22 @@ export function ProviderDetail({
             Data Sources
           </Link>
           <ChevronRight className="size-3.5 text-muted-foreground/50" />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-base font-semibold text-foreground transition-colors hover:bg-secondary"
-              >
+          <CrumbSwitcher
+            current={provider.id}
+            onSelect={(id) => navigate(`/data-discovery/sources/${id}`)}
+            options={providers.map((p) => ({
+              id: p.id,
+              label: p.name,
+              disabled: p.comingSoon,
+              icon: (
                 <ProviderIcon
-                  providerId={provider.id}
+                  providerId={p.id}
                   bare
                   className="text-muted-foreground"
                 />
-                {provider.name}
-                <ChevronDown className="size-4 text-muted-foreground" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              className="max-h-80 w-60 overflow-y-auto"
-            >
-              {providers.map((p) => (
-                <DropdownMenuItem
-                  key={p.id}
-                  disabled={p.comingSoon}
-                  onClick={() => navigate(`/data-discovery/sources/${p.id}`)}
-                  className="gap-2"
-                >
-                  <ProviderIcon
-                    providerId={p.id}
-                    bare
-                    className="text-muted-foreground"
-                  />
-                  <span className="flex-1 truncate">{p.name}</span>
-                  {p.id === provider.id && <Check className="size-4 text-brand" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              ),
+            }))}
+          />
         </nav>
         <Button onClick={() => setAddOpen(true)} className="transition-transform active:scale-95">
           <Plus className="size-4" />

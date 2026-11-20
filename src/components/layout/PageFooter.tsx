@@ -10,14 +10,15 @@ export function PageFooterSlot() {
   return <div id={SLOT_ID} className="shrink-0 empty:hidden" />
 }
 
-/** Render a footer bar into the shell's slot, full width, aligned with the page content. */
-export function PageFooter({ children }: { children: React.ReactNode }) {
+/** Render a footer bar into the shell's slot, full width, aligned with the page content.
+ *  `wide` matches a page that takes the whole window (`handle: { wide: true }`); `compact` is a slimmer bar for navigation. */
+export function PageFooter({ children, wide, compact }: { children: React.ReactNode; wide?: boolean; compact?: boolean }) {
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   useEffect(() => setSlot(document.getElementById(SLOT_ID)), [])
   if (!slot) return null
   return createPortal(
     <div className="border-t bg-card">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-3 px-4 sm:px-6">{children}</div>
+      <div className={`mx-auto flex w-full items-center gap-3 px-4 sm:px-6 ${compact ? 'h-12' : 'h-16'} ${wide ? '' : 'max-w-7xl'}`}>{children}</div>
     </div>,
     slot,
   )
