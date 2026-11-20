@@ -15,6 +15,12 @@ npm run dev      # http://localhost:5173
 npm run build    # type-check + production bundle
 ```
 
+## Releases
+
+| Version | Date | Branch | Live link | What changed |
+|---|---|---|---|---|
+| v0.1.0 | 2026-11-20 | `sprint/2026-11-20` | [uem-data-discovery-7r1z2fuqb…vercel.app](https://uem-data-discovery-7r1z2fuqb-surajit3255-5396s-projects.vercel.app/devices) | Device details redesign: pinned device name, compact actions with live switches, command history, two-pane System details |
+
 ## What's inside
 
 | Area | Route | Notes |
