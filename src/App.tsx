@@ -25,6 +25,9 @@ import { AppLibrary } from '@/pages/apps/AppLibrary'
 import { AppSetupPage } from '@/pages/apps/AppSetupPage'
 import { CategoriesPage } from '@/pages/apps/CategoriesPage'
 import { AppLibraryProvider } from '@/store/AppLibraryContext'
+import { ProfilesProvider } from '@/store/ProfilesContext'
+import { ProfilesList } from '@/pages/profiles/ProfilesList'
+import { ConfigProfileRoute } from '@/pages/profiles/ConfigProfileRoute'
 import { DevicesList } from '@/pages/devices/DevicesList'
 import { DeviceDetail } from '@/pages/devices/DeviceDetail'
 import { DeviceActivityPage } from '@/pages/devices/DeviceActivityPage'
@@ -63,6 +66,9 @@ const router = createBrowserRouter([
           { path: 'policies', element: <ApplicationPolicies /> },
         ],
       },
+      { path: 'mdm/apple/profiles', element: <ProfilesList /> },
+      { path: 'mdm/apple/profiles/new', element: <ConfigProfileRoute />, handle: { wide: true } },
+      { path: 'mdm/apple/profiles/:profileId', element: <ConfigProfileRoute />, handle: { wide: true } },
       { path: 'mdm/apple/app-library', element: <AppLibrary /> },
       { path: 'mdm/apple/app-library/:appId', element: <AppSetupPage /> },
       { path: 'mdm/categories', element: <CategoriesPage /> },
@@ -82,9 +88,11 @@ export default function App() {
       <ContentFilteringProvider>
         <ApplicationManagementProvider>
           <AppLibraryProvider>
-            <TooltipProvider delayDuration={200}>
-              <RouterProvider router={router} />
-            </TooltipProvider>
+            <ProfilesProvider>
+              <TooltipProvider delayDuration={200}>
+                <RouterProvider router={router} />
+              </TooltipProvider>
+            </ProfilesProvider>
           </AppLibraryProvider>
         </ApplicationManagementProvider>
       </ContentFilteringProvider>

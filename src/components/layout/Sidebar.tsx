@@ -28,6 +28,7 @@ import {
   FileDigit,
   Tag,
   LayoutGrid,
+  FileCog,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -69,6 +70,7 @@ const contentFilteringChildren: NavLeaf[] = [
 const mobileDeviceMgmtChildren: NavLeaf[] = [
   { label: 'Application Management', icon: AppWindow, to: AM_BASE },
   { label: 'Policies', icon: ShieldCheck, to: `${AM_BASE}/policies` },
+  { label: 'Apple Profiles', icon: FileCog, to: `${MDM_BASE}/apple/profiles` },
   { label: 'Apple App Library', icon: LayoutGrid, to: `${MDM_BASE}/apple/app-library` },
   { label: 'Categories', icon: Tag, to: `${MDM_BASE}/categories` },
   { label: 'Geofencing', icon: MapPin, inert: true },

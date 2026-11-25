@@ -24,5 +24,14 @@ function useStored<T extends string>(key: string, allowed: readonly T[], fallbac
   return [value, set]
 }
 
+export const sharedIpadDesigns = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7'] as const
+export type SharedIpadDesign = (typeof sharedIpadDesigns)[number]
+/** Shared iPad tab of the onboarding sheet — seven designs under comparison. V3 is the default. */
+export const useSharedIpadDesign = () => useStored<SharedIpadDesign>('uem-design-shared-ipad', sharedIpadDesigns, 'v3')
+
+export type ConfigDesign = SharedIpadDesign
+/** Configuration profile page — seven designs under comparison (labels in DesignSelect). V2 is the default. */
+export const useConfigDesign = () => useStored<ConfigDesign>('uem-design-config-profile', sharedIpadDesigns, 'v2')
+
 /** Header design on the app page. Revamped is the default. */
 export const useHeaderDesign = () => useStored<HeaderDesign>('dd-design-header-v2', headerDesigns, 'revamped')
